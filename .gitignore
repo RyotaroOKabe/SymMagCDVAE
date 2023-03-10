@@ -1,11 +1,11 @@
 trash/
 data/
-conf/
 hydra/
 magndata_cif/
 slurm/
 archive/
 wandb/
+asssets/
 
 
 
