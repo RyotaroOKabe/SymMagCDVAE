@@ -19,6 +19,7 @@ from torch.optim import Adam
 from pathlib import Path
 from types import SimpleNamespace
 from torch_geometric.data import Batch
+from itertools import combinations
 
 from scripts.eval_utils import load_model
 from pymatgen.core.lattice import Lattice
@@ -28,56 +29,15 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 from cdvae.common.data_utils import lattice_params_to_matrix_torch
 from torch_geometric.data import Data
 from torch.utils.data import Dataset
+import math as m
 
 from utils.utils_plot import vis_structure
+from utils.utils_material import MatSym, MatTrans, distance_sorted, Rx, Ry, Rz, rotate_cart, switch_latvecs
 
 
 #%%
 mpdata = pkl.load(open('data/mp_full.pkl', 'rb'))
 mpids = sorted(list(mpdata.keys()))
-
-#%%
-
-class MatSym():
-    def __init__(self, pstruct):
-        self.pstruct = pstruct
-        self.astruct = Atoms(list(map(lambda x: x.symbol, pstruct.species)) , # list of symbols got from pymatgen
-                        positions=pstruct.cart_coords.copy(),
-                        cell=pstruct.lattice.matrix.copy(), pbc=True) 
-        self.sga = SpacegroupAnalyzer(pstruct)
-        self.symops=self.sga.get_symmetry_operations()
-        self.spgops=self.sga.get_space_group_operations()
-        
-        self.pr_lat = self.sga.find_primitive()
-        self.conv_struct = self.sga.get_conventional_standard_structure()
-        self.hall = self.sga.get_hall()
-        self.lat_type = self.sga.get_lattice_type()
-        
-        self.pgops_frac = self.sga.get_point_group_operations(cartesian=False)
-        self.pgops_cart = self.sga.get_point_group_operations(cartesian=True)
-        
-        self.pg_sym = self.sga.get_point_group_symbol()
-        self.pr_struct = self.sga.get_primitive_standard_structure()
-        
-        self.sg = [self.sga.get_space_group_number(), self.sga.get_space_group_symbol()]
-        
-        # self.pga = PointGroupAnalyzer(pstruct)
-    def stransform(self, op):
-        """_summary_
-
-        Args:
-            op (SymmOp): operation
-        """
-        self.pstruct.apply_operation(op)
-    
-    # def valid_symop(self, op):
-    #     transformed_structure = op.operate(self.pstruct)
-    #     if not transformed_structure.matches(self.pstruct):
-    #         print("Symmetry operation is invalid")
-    #     else:
-    
-    # def 
-
 
 #%%
 pstruct = mpdata['mp-1000']
@@ -224,23 +184,107 @@ for i in range(n_ops):
 
 
 #%%
-import math as m
-  
-def Rx(theta):
-  return np.matrix([[ 1, 0           , 0           ],
-                   [ 0, m.cos(theta),-m.sin(theta)],
-                   [ 0, m.sin(theta), m.cos(theta)]])
-  
-def Ry(theta):
-  return np.matrix([[ m.cos(theta), 0, m.sin(theta)],
-                   [ 0           , 1, 0           ],
-                   [-m.sin(theta), 0, m.cos(theta)]])
-  
-def Rz(theta):
-  return np.matrix([[ m.cos(theta), -m.sin(theta), 0 ],
-                   [ m.sin(theta), m.cos(theta) , 0 ],
-                   [ 0           , 0            , 1 ]])
+struct_in = kstruct
+mt = MatTrans(struct_in)
+opes = list(set(mt.spgops))
+n_ops = len(opes)
+ope_struct, ope_structx, ope_structy = [], [], []
+for i in range(n_ops):
+    ope = opes[i]
+    mt.transform1(ope)
+    mt.transform2(ope, translation=False)
+    ope_struct.append([ope, mt.pstruct])
+    ope_structx.append([ope, mt.pstruct1])
+    ope_structy.append([ope, mt.pstruct2])
 
+
+struct_in = kstruct
+mt = MatTrans(struct_in)
+opes = list(set(mt.spgops))
+n_ops = len(opes)
+ope_struct, ope_struct1 = [], []
+ope_struct2_0, ope_struct2_1, ope_struct2_2, ope_struct2_3 = [], [], [], []
+count1 = 0
+count2_0, count2_1, count2_2, count2_3 = 0, 0, 0, 0
+for i in range(n_ops):
+    ope = opes[i]
+    mt.transform1(ope)
+    ope_struct.append([ope, mt.pstruct])
+    c_dists, f_dists = distance_sorted(mt.pstruct)
+    ope_struct1.append([ope, mt.pstruct1])
+    c_dists1, f_dists1 = distance_sorted(mt.pstruct1)
+    mt.transform2(ope, new_lat=True, translation=True)
+    ope_struct2_0.append([ope, mt.pstruct2])
+    c_dists2_0, f_dists2_0 = distance_sorted(mt.pstruct2)
+    mt.transform2(ope, new_lat=True, translation=False)
+    ope_struct2_1.append([ope, mt.pstruct2])
+    c_dists2_1, f_dists2_1 = distance_sorted(mt.pstruct2)
+    mt.transform2(ope, new_lat=False, translation=True)
+    ope_struct2_2.append([ope, mt.pstruct2])
+    c_dists2_2, f_dists2_2 = distance_sorted(mt.pstruct2)
+    mt.transform2(ope, new_lat=False, translation=False)
+    ope_struct2_3.append([ope, mt.pstruct2])
+    c_dists2_3, f_dists2_3 = distance_sorted(mt.pstruct2)
+    print('geometry) pstruct==pstruct1: ',  int(np.allclose(c_dists[:,0], c_dists1[:,0], atol=1e-03)))
+    print('geometry) pstruct==pstruct2_0: ',  int(np.allclose(c_dists[:,0], c_dists2_0[:,0], atol=1e-03)))
+    print('geometry) pstruct==pstruct2_1: ',  int(np.allclose(c_dists[:,0], c_dists2_1[:,0], atol=1e-03)))
+    print('geometry) pstruct==pstruct2_2: ',  int(np.allclose(c_dists[:,0], c_dists2_2[:,0], atol=1e-03)))
+    print('geometry) pstruct==pstruct2_3: ',  int(np.allclose(c_dists[:,0], c_dists2_3[:,0], atol=1e-03)))
+    count1 += int(np.allclose(c_dists[:,0], c_dists1[:,0], atol=1e-03))
+    count2_0 += int(np.allclose(c_dists[:,0], c_dists2_0[:,0], atol=1e-03))
+    count2_1 += int(np.allclose(c_dists[:,0], c_dists2_1[:,0], atol=1e-03))
+    count2_2 += int(np.allclose(c_dists[:,0], c_dists2_2[:,0], atol=1e-03))
+    count2_3 += int(np.allclose(c_dists[:,0], c_dists2_3[:,0], atol=1e-03))
+print('count1: ', 100*count1/n_ops)
+print('count2_0: ', 100*count2_0/n_ops)
+print('count2_1: ', 100*count2_1/n_ops)
+print('count2_2: ', 100*count2_2/n_ops)
+print('count2_3: ', 100*count2_3/n_ops)
+
+#%%
+# use distance matrix instead
+struct_in = pstruct
+mt = MatTrans(struct_in)
+opes = list(set(mt.spgops))
+n_ops = len(opes)
+ope_struct, ope_struct1 = [], []
+ope_struct2_0, ope_struct2_1, ope_struct2_2, ope_struct2_3 = [], [], [], []
+count1 = 0
+count2_0, count2_1, count2_2, count2_3 = 0, 0, 0, 0
+for i in range(n_ops):
+    ope = opes[i]
+    mt.transform1(ope)
+    ope_struct.append([ope, mt.pstruct])
+    dmatrix = mt.pstruct.distance_matrix
+    ope_struct1.append([ope, mt.pstruct1])
+    dmatrix1 = mt.pstruct1.distance_matrix
+    mt.transform2(ope, new_lat=True, translation=True)
+    ope_struct2_0.append([ope, mt.pstruct2])
+    dmatrix2_0 = mt.pstruct2.distance_matrix
+    mt.transform2(ope, new_lat=True, translation=False)
+    ope_struct2_1.append([ope, mt.pstruct2])
+    dmatrix2_1 = mt.pstruct2.distance_matrix
+    mt.transform2(ope, new_lat=False, translation=True)
+    ope_struct2_2.append([ope, mt.pstruct2])
+    dmatrix2_2 = mt.pstruct2.distance_matrix
+    mt.transform2(ope, new_lat=False, translation=False)
+    ope_struct2_3.append([ope, mt.pstruct2])
+    dmatrix2_3 = mt.pstruct2.distance_matrix
+    # print('geometry) pstruct==pstruct1: ',  int(np.allclose(dmatrix, dmatrix1, atol=1e-03)))
+    # print('geometry) pstruct==pstruct2_0: ',  int(np.allclose(dmatrix, dmatrix2_0, atol=1e-03)))
+    # print('geometry) pstruct==pstruct2_1: ',  int(np.allclose(dmatrix, dmatrix2_1, atol=1e-03)))
+    # print('geometry) pstruct==pstruct2_2: ',  int(np.allclose(dmatrix, dmatrix2_2, atol=1e-03)))
+    # print('geometry) pstruct==pstruct2_3: ',  int(np.allclose(dmatrix, dmatrix2_3, atol=1e-03)))
+    count1 += int(np.allclose(dmatrix, dmatrix1, atol=1e-03))
+    count2_0 += int(np.allclose(dmatrix, dmatrix2_0, atol=1e-03))
+    count2_1 += int(np.allclose(dmatrix, dmatrix2_1, atol=1e-03))
+    count2_2 += int(np.allclose(dmatrix, dmatrix2_2, atol=1e-03))
+    count2_3 += int(np.allclose(dmatrix, dmatrix2_3, atol=1e-03))
+print('count1: ', 100*count1/n_ops)
+print('count2_0: ', 100*count2_0/n_ops)
+print('count2_1: ', 100*count2_1/n_ops)
+print('count2_2: ', 100*count2_2/n_ops)
+print('count2_3: ', 100*count2_3/n_ops)
 
 #%%
 opz = Rz(1*m.pi/2)
@@ -258,7 +302,6 @@ pstructy_ = Structure(
     coords_are_cartesian=True
 )
 
-
 #%%
 def count_valence_electrons(pstruct):
     spec = pstruct.species
@@ -267,5 +310,43 @@ def count_valence_electrons(pstruct):
         va = elem.valence[1]
         elcount += va
     return elcount
+
+struct = kstruct
+rot = Rx(-0.01*m.pi)
+tau = np.array([0,0,0])
+struct_in = rotate_cart(struct, rot, tau, ope_lat=0)
+mt = MatTrans(struct_in)
+print(mt.sg)
+print('dmatrix is maintained: ', np.allclose(struct.distance_matrix, struct_in.distance_matrix))
+opes = list(set(mt.spgops))
+opes
+
+
+struct = kstruct #list(mp_hex.values())[2]    #['mp-10009']
+rot = Rx(-0.0*m.pi)
+tau = np.array([0,0,0])
+struct_in = rotate_cart(struct, rot, tau, ope_lat=0)
+mt = MatTrans(struct_in)
+print(mt.sg)
+print('dmatrix is maintained: ', np.allclose(struct.distance_matrix, struct_in.distance_matrix))
+kopes = list(set(mt.spgops))
+struct = list(mp_hex.values())[2]    #['mp-10009']
+rot = Rx(-0.0*m.pi)
+tau = np.array([0,0,0])
+struct_in = rotate_cart(struct, rot, tau, ope_lat=0)
+mt = MatTrans(struct_in)
+print(mt.sg)
+print('dmatrix is maintained: ', np.allclose(struct.distance_matrix, struct_in.distance_matrix))
+opes = list(set(mt.spgops))
+opes1 = [op.rotation_matrix for op in kopes]
+opes2 = [op.rotation_matrix for op in opes]
+len1, len2 = len(opes1), len(opes2)
+matrix = np.zeros((len1, len2))
+for i, op1 in enumerate(opes1):
+    for j, op2 in enumerate(opes2):
+        if np.allclose(abs(op1), abs(op2)):
+            print(op1)
+            matrix[i, j] = 1
+matrix
 
 #%%
