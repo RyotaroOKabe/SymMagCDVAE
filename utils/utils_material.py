@@ -99,9 +99,9 @@ class MatTrans(MatSym):
         opr = ope.rotation_matrix
         opt = ope.translation_vector
         # pstructy: apply operation to frac coords
-        self.lat2 = (np.eye(3)@opr.T)@lat
+        self.lat2 = (np.eye(3)@opr.T)@self.lat
         if translation:
-            self.frac2 = self.frac@opr.T + opt # frac coords with respect to the original structure's lattice vectors
+            self.frac2 = (self.frac@opr.T + opt) # frac coords with respect to the original structure's lattice vectors
         else: 
             self.frac2 = self.frac@opr.T
         self.cart2 = self.frac2@self.lat
@@ -121,7 +121,7 @@ class MatTrans(MatSym):
         opr = ope.rotation_matrix
         opt = ope.translation_vector
         # pstructy: apply operation to frac coords
-        self.lat3 = (np.eye(3)@opr.T)@lat
+        self.lat3 = (np.eye(3)@opr.T)@self.lat
         if translation:
             self.frac3 = (self.frac+opt)@opr.T # frac coords with respect to the original structure's lattice vectors
         else: 

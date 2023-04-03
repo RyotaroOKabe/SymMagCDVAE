@@ -64,10 +64,13 @@ from pymatgen.core.lattice import Lattice
 
 
 
-def vis_structure(struct_pm, supercell=np.eye(3), title=None, idx=None, rot='5x,5y,90z', savefig=False):
-    struct = Atoms(list(map(lambda x: x.symbol, struct_pm.species)) , # list of symbols got from pymatgen
-            positions=struct_pm.cart_coords.copy(),
-            cell=struct_pm.lattice.matrix.copy(), pbc=True) 
+def vis_structure(struct_in, supercell=np.eye(3), title=None, rot='5x,5y,90z', savedir=None):
+    if type(struct_in)==Structure:
+        struct = Atoms(list(map(lambda x: x.symbol, struct_in.species)) , # list of symbols got from pymatgen
+                positions=struct_in.cart_coords.copy(),
+                cell=struct_in.lattice.matrix.copy(), pbc=True) 
+    elif type(struct_in)==Atoms:
+        struct=struct_in
     struct = make_supercell(struct, supercell)
     symbols = np.unique(list(struct.symbols))
     len_symbs = len(list(struct.symbols))
@@ -82,12 +85,11 @@ def vis_structure(struct_pm, supercell=np.eye(3), title=None, idx=None, rot='5x,
     ax.set_ylabel(r'$x_2\ (\AA)$');
     fig.patch.set_facecolor('white')
     fig.suptitle(f"{title} / {struct.get_chemical_formula()}", fontsize=15)
-    savedir = 'savefig/structs/'
-    path = f'{savedir}{title}'
-    if savefig:
+    if savedir is not None:
+        path = savedir
         if not os.path.isdir(f'{path}'):
             os.mkdir(path)
-        fig.savefig(f'{path}/{title}_{struct.get_chemical_formula()}_{idx}.png')
+        fig.savefig(f'{path}/{struct.get_chemical_formula()}_{title}.png')
 
 
 
