@@ -418,8 +418,8 @@ def operation_identity2(struct_in, opr, r_max, tol, get_diff=True):
                         positions=frac0, cell=np.eye(3), pbc=True) 
     astruct1 = Atoms(list(map(lambda x: x.symbol, struct_in.species)),
                         positions=frac1, cell=np.eye(3), pbc=True) 
-    edge_src0, edge_dst0, edge_shift0, edge_vec0, edge_len0 = neighbor_list("ijSDd", a = astruct0, cutoff = r_max, self_interaction = True)
-    edge_src1, edge_dst1, edge_shift1, edge_vec1, edge_len1 = neighbor_list("ijSDd", a = astruct1, cutoff = r_max, self_interaction = True)
+    _, _, _, edge_vec0, _ = neighbor_list("ijSDd", a = astruct0, cutoff = r_max, self_interaction = True)
+    _, _, _, edge_vec1, _ = neighbor_list("ijSDd", a = astruct1, cutoff = r_max, self_interaction = True)
     out0 = model(Tensor(edge_vec0))
     out1 = model(Tensor(edge_vec1))
     if get_diff:
@@ -444,10 +444,10 @@ def diff_with_opes2(struct_in, oprs, r_max):
 #%%
 
 
-logvars = np.linspace(-3, 0, num=31) #range(10, -5, -1)
+logvars = np.linspace(-3, 0, num=41) #range(10, -5, -1)
 xs = [10**l for l in logvars]
 ys = []
-# struct_in = mpdata['mp-1000']#kstruct
+struct_in = cosn #mpdata['mp-1000']#kstruct
 mt = MatTrans(struct_in)
 opes = list(set(mt.spgops))
 oprs = [op.rotation_matrix for op in opes]
@@ -457,14 +457,18 @@ r_max = 0.7
 for l in logvars:
     sigma = 10**l
     dstruct = disturb_frac(struct_in, sigma=sigma)
-    vis_structure(dstruct, title=str(sigma))
+    vis_structure(dstruct, title=f"$log(\sigma)$={round(l, 7)}")
     plt.show()
     plt.close()
     dvec = diff_with_opes2(dstruct, oprs, r_max)
     ys.append(np.linalg.norm(dvec))
 
-plt.plot(logvars, ys)
-plt.yscale('log')
+fig, ax = plt.subplots(1,1,figsize=(8,8))
+ax.plot(logvars, ys)
+ax.set_ylabel(f"Mismatch by Space group operation")
+ax.set_xlabel(f"$log(\sigma)$")
+# ax.set_yscale('log')
+fig.patch.set_facecolor('white')
 
 
 
