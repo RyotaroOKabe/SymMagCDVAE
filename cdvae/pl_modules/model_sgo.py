@@ -16,7 +16,7 @@ from cdvae.common.data_utils import (
     frac_to_cart_coords, min_distance_sqr_pbc)
 from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
-from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP, esgo_repeat
+from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
 
 
 def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):  #OK
@@ -140,8 +140,8 @@ class CDVAE(BaseModule):
         self.encoder = hydra.utils.instantiate(
             self.hparams.encoder, num_targets=self.hparams.latent_dim)  #? use embedded symmops
         self.decoder = hydra.utils.instantiate(self.hparams.decoder)  #? use embedded symmops
-        # self.struct2spgop = struct2spgop    #! define function to convert structure to space groups (use pymatgen)
-        # self.embed_symmetry = Embed_SPGOP(self.hparams.esgo_hidden_dim, self.hparams.esgo_dim, self.hparams.esgo_num_layers)   #! define function
+        self.struct2spgop = struct2spgop    #! define function to convert structure to space groups (use pymatgen)
+        self.embed_symmetry = Embed_SPGOP(self.hparams.esgo_hidden_dim, self.hparams.esgo_dim, self.hparams.esgo_num_layers)   #! define function
         self.fc_mu = nn.Linear(self.hparams.latent_dim,#+self.hparams.esgo_dim,
                                self.hparams.latent_dim) #OK   #? use embedded symmops
         self.fc_var = nn.Linear(self.hparams.latent_dim,#+self.hparams.esgo_dim,
@@ -191,15 +191,15 @@ class CDVAE(BaseModule):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def encode(self, batch):    #OK
+    def encode(self, batch, esgo):    #OK
         """
         encode crystal structures to latents.
         """
-        hidden, sgo, sgo_batch, esgo = self.encoder(batch)    #? how to use space group as the input.
+        hidden = self.encoder(batch, esgo)    #? how to use space group as the input.
         mu = self.fc_mu(hidden) #OK
         log_var = self.fc_var(hidden)   #OK
         z = self.reparameterize(mu, log_var)    #OK
-        return mu, log_var, z, sgo, sgo_batch, esgo
+        return mu, log_var, z
 
     def decode_stats(self, z, esgo, gt_num_atoms=None, gt_lengths=None, gt_angles=None,
                      teacher_forcing=False):    #? USE SPG (embedded as the input)
@@ -306,21 +306,19 @@ class CDVAE(BaseModule):
 
         return output_dict
 
-    def sample(self, num_samples, ld_kwargs, esgo): #? esgo
+    def sample(self, num_samples, ld_kwargs, esgo): #TODO esgo
         z = torch.randn(num_samples, self.hparams.hidden_dim,
                         device=self.device)
-        samples = self.langevin_dynamics(z, esgo, ld_kwargs)    #? esgo
+        samples = self.langevin_dynamics(z, esgo, ld_kwargs)    #TODO esgo
         return samples
 
     def forward(self, batch, teacher_forcing, training):
         # hacky way to resolve the NaN issue. Will need more careful debugging later.
-        # mu, log_var, z = self.encode(batch)
-        # sgo, sgo_batch = self.struct2spgop(batch)
-        # esgo = self.embed_symmetry(sgo, sgo_batch)
-        mu, log_var, z, sgo, sgo_batch, esgo = self.encode(batch)
-        # print("z: ", z.shape)
-        # print("sgo: ", sgo.shape)
-        # print("esgo: ", esgo.shape)
+        sgo, sgo_batch = self.struct2spgop(batch)
+        esgo = self.embed_symmetry(sgo, sgo_batch)
+        mu, log_var, z = self.encode(batch, esgo)
+        #mu, log_var, z, sgo, sgo_batch, esgo = self.encode(batch)
+        print("z: ", z.shape)
         (pred_num_atoms, pred_lengths_and_angles, pred_lengths, pred_angles,
          pred_composition_per_atom) = self.decode_stats(
             z, esgo, batch.num_atoms, batch.lengths, batch.angles, teacher_forcing) #OK #? incorporate esgo
@@ -391,6 +389,7 @@ class CDVAE(BaseModule):
             'type_loss': type_loss,
             'kld_loss': kld_loss,
             'property_loss': property_loss,
+            'sgo_loss': sgo_loss, #!
             'pred_num_atoms': pred_num_atoms,
             'pred_lengths_and_angles': pred_lengths_and_angles,
             'pred_lengths': pred_lengths,
@@ -538,7 +537,7 @@ class CDVAE(BaseModule):
         return kld_loss
     
     def sgo_loss(self, sgo):    #? define
-        
+        #TODO how to define space group operation loss? 
         pass
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:    #OK

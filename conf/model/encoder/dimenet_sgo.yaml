@@ -16,7 +16,5 @@ num_after_skip: 2
 num_output_layers: 3
 readout: ${data.readout}
 
-esgo_dim: 32
-esgo_hidden_dim: 64
-esgo_num_layers: 2
+esgo_dim: ${model.esgo_dim}
 latent_dim: ${model.latent_dim}

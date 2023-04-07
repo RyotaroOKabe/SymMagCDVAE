@@ -20,7 +20,7 @@ from cdvae.common.data_utils import (
     radius_graph_pbc_wrapper,
 )
 from cdvae.pl_modules.gemnet.gemnet import GemNetT
-from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP, build_mlp  #! space group operations
+from cdvae.pl_modules.space_group import build_mlp  #! space group operations
 
 try:
     import sympy as sym
@@ -318,8 +318,6 @@ class DimeNetPlusPlusWrap(DimeNetPlusPlus):
         num_output_layers=3,
         readout='mean',
         esgo_dim=32,    #!
-        esgo_hidden_dim=64, #!
-        esgo_num_layers=2,  #!
         latent_dim=128,
     ):
         self.num_targets = num_targets
@@ -330,12 +328,7 @@ class DimeNetPlusPlusWrap(DimeNetPlusPlus):
         self.readout = readout
         
         self.esgo_dim=esgo_dim    #!
-        self.esgo_hidden_dim=esgo_hidden_dim #!
-        self.esgo_num_layers=esgo_num_layers  #!
         self.latent_dim=latent_dim    #!
-        # self.hidden_channels=hidden_channels    #!
-        # print("esgo params: ", [self.esgo_dim, self.esgo_hidden_dim, self.esgo_num_layers])
-        # print("esgo params: ", [type(self.esgo_dim), type(self.esgo_hidden_dim), type(self.esgo_num_layers)])
 
         super(DimeNetPlusPlusWrap, self).__init__(
             hidden_channels=hidden_channels,
@@ -353,16 +346,16 @@ class DimeNetPlusPlusWrap(DimeNetPlusPlus):
             num_output_layers=num_output_layers,
         )
 
-        self.struct2spgop = struct2spgop    #! define function to convert structure to space groups (use pymatgen)
-        self.embed_symmetry = Embed_SPGOP(self.esgo_hidden_dim, self.esgo_dim, self.esgo_num_layers)   #! define function
+        # self.struct2spgop = struct2spgop    #! define function to convert structure to space groups (use pymatgen)
+        # self.embed_symmetry = Embed_SPGOP(self.esgo_hidden_dim, self.esgo_dim, self.esgo_num_layers)   #! define function
         self.hidden_esgo_combine = build_mlp(self.latent_dim+self.esgo_dim, self.latent_dim, 2, self.latent_dim) #!
         # self.hidden_esgo_combine = build_mlp(self.hidden_channels+self.esgo_dim, self.hidden_channels, 2, self.hidden_channels) #!
 
-    def forward(self, data):
+    def forward(self, data, esgo):
         batch = data.batch
 
-        sgo, sgo_batch = self.struct2spgop(data)    #!
-        esgo = self.embed_symmetry(sgo, sgo_batch)  #!
+        # sgo, sgo_batch = self.struct2spgop(data)    #!
+        # esgo = self.embed_symmetry(sgo, sgo_batch)  #!
         # print("esgo: ", esgo.shape)
 
         if self.otf_graph:
@@ -447,7 +440,7 @@ class DimeNetPlusPlusWrap(DimeNetPlusPlus):
         energy = self.hidden_esgo_combine(concat) #!
         # print("[energy affterward]: ", energy.shape)
 
-        return energy, sgo, sgo_batch, esgo   #!
+        return energy   #, sgo, sgo_batch, esgo   #!
 
     @property
     def num_params(self):

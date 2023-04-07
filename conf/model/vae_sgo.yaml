@@ -21,12 +21,9 @@ type_sigma_begin: 5.
 type_sigma_end: 0.01
 num_noise_level: 50
 predict_property: False
-# esgo_dim: 32
-# esgo_hidden_dim: 64
-# esgo_num_layers: 2
-esgo_dim: ${model.encoder.esgo_dim}
-esgo_hidden_dim: ${model.encoder.esgo_hidden_dim}
-esgo_num_layers: ${model.encoder.esgo_num_layers}
+esgo_dim: 32
+esgo_hidden_dim: 64
+esgo_num_layers: 2
 use_sgo_loss: False
 
 defaults:

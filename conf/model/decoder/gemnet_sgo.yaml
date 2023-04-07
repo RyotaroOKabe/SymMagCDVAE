@@ -5,4 +5,4 @@ max_neighbors: ${model.max_neighbors}
 radius: ${model.radius}
 scale_file: ${oc.env:PROJECT_ROOT}/cdvae/pl_modules/gemnet/gemnet-dT.json
 
-esgo_dim: ${model.encoder.esgo_dim}
+esgo_dim: ${model.esgo_dim}
