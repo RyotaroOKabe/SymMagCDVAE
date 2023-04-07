@@ -318,7 +318,8 @@ class CDVAE(BaseModule):
         esgo = self.embed_symmetry(sgo, sgo_batch)
         mu, log_var, z = self.encode(batch, esgo)
         #mu, log_var, z, sgo, sgo_batch, esgo = self.encode(batch)
-        print("z: ", z.shape)
+        # print("z: ", z.shape)
+        z_esgo = torch.cat((z, esgo), dim=-1)
         (pred_num_atoms, pred_lengths_and_angles, pred_lengths, pred_angles,
          pred_composition_per_atom) = self.decode_stats(
             z, esgo, batch.num_atoms, batch.lengths, batch.angles, teacher_forcing) #OK #? incorporate esgo
@@ -377,7 +378,7 @@ class CDVAE(BaseModule):
             sgo_loss = 0.
 
         if self.hparams.predict_property:
-            property_loss = self.property_loss(z, batch)    #OK
+            property_loss = self.property_loss(z_esgo, batch)    #OK
         else:
             property_loss = 0.
 

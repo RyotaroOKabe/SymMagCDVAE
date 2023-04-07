@@ -7,8 +7,12 @@ from torch.optim import Adam
 from pathlib import Path
 from types import SimpleNamespace
 from torch_geometric.data import Batch
+from pymatgen.core.structure import Structure   #!
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer   #!
+import pickle as pkl    #!
 
 from eval_utils import load_model
+from cdvae.pl_modules.space_group import struct2spgop
 
 
 def reconstructon(loader, model, ld_kwargs, num_evals,
@@ -34,9 +38,10 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         batch_all_atom_types = []
         batch_frac_coords, batch_num_atoms, batch_atom_types = [], [], []
         batch_lengths, batch_angles = [], []
-
+        sgo, sgo_batch = struct2spgop(batch)
+        esgo = model.embed_symmetry(sgo, sgo_batch)
         # only sample one z, multiple evals for stoichaticity in langevin dynamics
-        _, _, z, sgo, sgo_batch, esgo = model.encode(batch)   #TODO esgo
+        _, _, z = model.encode(batch, esgo)   #TODO esgo
 
         for eval_idx in range(num_evals):
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
@@ -84,8 +89,8 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         all_frac_coords_stack, all_atom_types_stack, input_data_batch)
 
 
-def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, sgnum,
-               batch_size=512, down_sample_traj_step=1):    #TODO: esgo
+def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z,
+               batch_size=512, down_sample_traj_step=1, mpid=None):    #TODO: esgo
     all_frac_coords_stack = []
     all_atom_types_stack = []
     frac_coords = []
@@ -93,8 +98,18 @@ def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, sgnum
     atom_types = []
     lengths = []
     angles = []
-    sgo = None
-    sgo_batch = None
+    mpdata = pkl.load(open('data/mp_full.pkl', 'rb'))
+    pstruct = mpdata[mpid]
+    sga = SpacegroupAnalyzer(pstruct)
+    opes = set(sga.get_symmetry_operations())
+    nopes = len(opes)
+    sgo=torch.tensor(torch.stack([torch.tensor(ope.rotation_matrix) for ope in opes]), device=model.device).float()
+    sgo_batch =  (torch.tensor([0 for _ in range(nopes)]).to(sgo).type(torch.int64))
+    # print('sgo: ', sgo)
+    # print('sgo_batch: ', sgo_batch)
+    esgo = model.embed_symmetry(sgo, sgo_batch).repeat_interleave(batch_size, dim=0, output_size=batch_size)   #TODO
+    # print('esgo: ', esgo.shape)
+    # print('esgo: ', esgo)
     for z_idx in range(num_batches_to_sample):
         batch_all_frac_coords = []
         batch_all_atom_types = []
@@ -103,7 +118,6 @@ def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, sgnum
 
         z = torch.randn(batch_size, model.hparams.hidden_dim,
                         device=model.device)
-        esgo = model.embed_symmetry(sgo, sgo_batch).repeat_interleave(batch_size, dim=0, output_size=batch_size)   #TODO
         for sample_idx in range(num_samples_per_z):
             samples = model.langevin_dynamics(z, esgo, ld_kwargs) #TODO: esgo
 
@@ -145,10 +159,13 @@ def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, sgnum
 
 def optimization(model, ld_kwargs, data_loader,
                  num_starting_points=100, num_gradient_steps=5000,
-                 lr=1e-3, num_saved_crys=10):
+                 lr=1e-3, num_saved_crys=10):   #TODO esgo
     if data_loader is not None:
         batch = next(iter(data_loader)).to(model.device)
-        _, _, z = model.encode(batch)
+        sgo, sgo_batch = struct2spgop(batch)
+        esgo = model.embed_symmetry(sgo, sgo_batch)
+        num_starting_points = len(esgo) #!
+        _, _, z = model.encode(batch, esgo)
         z = z[:num_starting_points].detach().clone()
         z.requires_grad = True
     else:
@@ -156,19 +173,22 @@ def optimization(model, ld_kwargs, data_loader,
                         device=model.device)
         z.requires_grad = True
 
+    # print('z: ', z.shape)
+    # print('esgo: ', esgo.shape)
     opt = Adam([z], lr=lr)
     model.freeze()
 
     all_crystals = []
     interval = num_gradient_steps // (num_saved_crys-1)
+    z_esgo = torch.cat((z, esgo), dim=-1)   #!
     for i in tqdm(range(num_gradient_steps)):
         opt.zero_grad()
-        loss = model.fc_property(z).mean()
-        loss.backward()
+        loss = model.fc_property(z_esgo).mean()  #!
+        loss.backward(retain_graph=True)
         opt.step()
 
         if i % interval == 0 or i == (num_gradient_steps-1):
-            crystals = model.langevin_dynamics(z, ld_kwargs)
+            crystals = model.langevin_dynamics(z, esgo, ld_kwargs)
             all_crystals.append(crystals)
     return {k: torch.cat([d[k] for d in all_crystals]).unsqueeze(0) for k in
             ['frac_coords', 'atom_types', 'num_atoms', 'lengths', 'angles']}
@@ -222,7 +242,7 @@ def main(args):
         (frac_coords, num_atoms, atom_types, lengths, angles,
          all_frac_coords_stack, all_atom_types_stack) = generation(
             model, ld_kwargs, args.num_batches_to_samples, args.num_evals,
-            args.batch_size, args.down_sample_traj_step)
+            args.batch_size, args.down_sample_traj_step, args.mpid) #TODO: apply sgo
 
         if args.label == '':
             gen_out_name = 'eval_gen.pt'
@@ -276,6 +296,7 @@ if __name__ == '__main__':
     parser.add_argument('--force_atom_types', action='store_true')
     parser.add_argument('--down_sample_traj_step', default=10, type=int)
     parser.add_argument('--label', default='')
+    parser.add_argument('--mpid', default='mp-149') #!
 
     args = parser.parse_args()
 

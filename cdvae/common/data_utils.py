@@ -650,7 +650,7 @@ def get_scaler_from_data_list(data_list, key):
 def preprocess(input_file, num_workers, niggli, primitive, graph_method,
                prop_list):
     df = pd.read_csv(input_file)
-    df = df[:int(len(df)*0.05)]#? shorten the data size
+    # df = df[:int(len(df)*0.05)]#? shorten the data size
     def process_one(row, niggli, primitive, graph_method, prop_list):
         crystal_str = row['cif']
         crystal = build_crystal(

@@ -42,8 +42,6 @@ def struct2spgop(batch):
     sgo_batch = []
     for i in range(num_batch):
         is_batch = batch.batch==i
-        length = batch.lengths[i,:]
-        angle = batch.angles[i,:]
         frac_coord=batch.frac_coords[is_batch,:]
         atom_type = batch.atom_types[is_batch]
         lattice = lattices[i, :, :]

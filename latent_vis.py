@@ -37,7 +37,7 @@ from scripts.eval_utils import load_model
 # hydra, omegaconfig
 
 # set parmters 
-model_path="/home/rokabe/data2/generative/magcdvae/hydra/singlerun/2023-02-26/mp_20_short"
+model_path="/home/rokabe/data2/generative/magcdvae/hydra/singlerun/2023-02-22/mp_20"
 n_step_each=100
 step_lr=1e-4
 min_sigma=0

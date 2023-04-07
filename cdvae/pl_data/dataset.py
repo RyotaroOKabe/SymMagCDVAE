@@ -22,7 +22,7 @@ class CrystDataset(Dataset):
         self.path = path
         self.name = name
         self.df = pd.read_csv(path)
-        self.df = self.df[:int(len(self.df)*0.05)]#? shorten the data size   #!
+        # self.df = self.df[:int(len(self.df)*0.05)]#? shorten the data size   #!
         self.prop = prop
         self.niggli = niggli
         self.primitive = primitive
