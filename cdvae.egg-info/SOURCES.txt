@@ -3,6 +3,8 @@ README.md
 setup.py
 cdvae/__init__.py
 cdvae/run.py
+cdvae/run_sgo_v1.py
+cdvae/run_v1.py
 cdvae.egg-info/PKG-INFO
 cdvae.egg-info/SOURCES.txt
 cdvae.egg-info/dependency_links.txt
@@ -19,6 +21,9 @@ cdvae/pl_modules/__init__.py
 cdvae/pl_modules/decoder.py
 cdvae/pl_modules/gnn.py
 cdvae/pl_modules/model.py
+cdvae/pl_modules/model_layer.py
+cdvae/pl_modules/model_sgo.py
+cdvae/pl_modules/space_group.py
 cdvae/pl_modules/embeddings/__init__.py
 cdvae/pl_modules/embeddings/atomic_radii.py
 cdvae/pl_modules/embeddings/continuous_embeddings.py

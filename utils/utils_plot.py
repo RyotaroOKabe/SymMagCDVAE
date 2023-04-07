@@ -84,7 +84,11 @@ def vis_structure(struct_in, supercell=np.eye(3), title=None, rot='5x,5y,90z', s
     ax.set_xlabel(r'$x_1\ (\AA)$')
     ax.set_ylabel(r'$x_2\ (\AA)$');
     fig.patch.set_facecolor('white')
-    fig.suptitle(f"{title} / {struct.get_chemical_formula()}", fontsize=15)
+    if title is None:
+        ftitle = f"{struct.get_chemical_formula()}"
+    else: 
+        ftitle = f"{title} / {struct.get_chemical_formula()}"
+    fig.suptitle(ftitle, fontsize=15)
     if savedir is not None:
         path = savedir
         if not os.path.isdir(f'{path}'):
