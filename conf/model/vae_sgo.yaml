@@ -21,7 +21,7 @@ type_sigma_begin: 5.
 type_sigma_end: 0.01
 num_noise_level: 50
 predict_property: False
-esgo_dim: 32
+esgo_dim: 64
 esgo_hidden_dim: 64
 esgo_num_layers: 2
 use_sgo_loss: False
