@@ -1,6 +1,6 @@
 _target_: cdvae.pl_modules.model_sgo.CDVAE
-hidden_dim: 128
-latent_dim: 128
+hidden_dim: 256
+latent_dim: 256
 fc_num_layers: 1
 max_atoms: ${data.max_atoms}
 cost_natom: 1.
@@ -21,9 +21,9 @@ type_sigma_begin: 5.
 type_sigma_end: 0.01
 num_noise_level: 50
 predict_property: False
-esgo_dim: 64
-esgo_hidden_dim: 64
-esgo_num_layers: 2
+esgo_dim: 256
+esgo_hidden_dim: 256
+esgo_num_layers: 4
 use_sgo_loss: False
 
 defaults:
