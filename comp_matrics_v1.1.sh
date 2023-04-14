@@ -5,4 +5,4 @@
 #SBATCH --time=3-23:00			# time (DD-HH:MM)
 #SBATCH --output="slurm/%x_%j.out"		# output file where all text printed to terminal will be stored
 					# current format is set to "job-name_jobID.out"
-nice python scripts/compute_metrics_v1.py --root_path /home/rokabe/data1/generative/cdvae/hydra/singlerun/2023-01-12/perov_def  --tasks recon gen opt 	# command or script to run; can use 'nvidia-smi' as a test
+nice python scripts/compute_metrics.py --root_path /home/rokabe/data2/generative/magcdvae/hydra/singlerun/2023-04-13/perov  --tasks recon gen opt 	# command or script to run; can use 'nvidia-smi' as a test

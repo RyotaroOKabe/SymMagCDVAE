@@ -316,8 +316,10 @@ def main(args):
                 recon_file_path)
             gt_crys = p_map(lambda x: Crystal(x), true_crystal_array_list)
 
+        # gen_evaluator = GenEval(
+        #     gen_crys, gt_crys, eval_model_name=eval_model_name)
         gen_evaluator = GenEval(
-            gen_crys, gt_crys, eval_model_name=eval_model_name)
+            gen_crys, gt_crys, n_samples=100, eval_model_name=eval_model_name) #! nsamples
         gen_metrics = gen_evaluator.get_metrics()
         all_metrics.update(gen_metrics)
 

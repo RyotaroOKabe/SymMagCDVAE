@@ -34,12 +34,12 @@ savedir = join(homedir, 'figures')
 print("datadir: ", datadir)
 
 #%%
-job = "2023-04-07/mp_20_full"   #!
+job = "2023-04-11/mp_20_org"   #!
 jobdir = join(hydradir, job)
 recon_path = join(jobdir, 'eval_recon.pt')
 gen_path = join(jobdir, 'eval_gen.pt')
 opt_path = join(jobdir, 'eval_opt.pt')
-use_path = recon_path #!
+use_path = gen_path #!
 lengths, angles, num_atoms, frac_coords, atom_types, all_frac_coords_stack, all_atom_types_stack, eval_setting, time =output_eval(use_path)
 lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
 num = len(lattices)
