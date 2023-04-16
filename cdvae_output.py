@@ -34,12 +34,11 @@ savedir = join(homedir, 'figures')
 print("datadir: ", datadir)
 
 #%%
-job = "2023-04-11/mp_20_org"   #!
+job = "2023-04-13/mp_20"   #!
+task = 'recon'
 jobdir = join(hydradir, job)
-recon_path = join(jobdir, 'eval_recon.pt')
-gen_path = join(jobdir, 'eval_gen.pt')
-opt_path = join(jobdir, 'eval_opt.pt')
-use_path = gen_path #!
+use_path = join(jobdir, f'eval_{task}.pt') #!
+
 lengths, angles, num_atoms, frac_coords, atom_types, all_frac_coords_stack, all_atom_types_stack, eval_setting, time =output_eval(use_path)
 lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
 num = len(lattices)
@@ -47,7 +46,7 @@ print("jobdir: ", jobdir)
 #%%
 #[1] check each structure
 idx = 0
-astruct_list = get_astruct_list(gen_path, idx)
+astruct_list = get_astruct_list(use_path, idx)
 
 #%%
 # structdir = join(savedir, job, str(idx))
@@ -55,12 +54,12 @@ astruct_list = get_astruct_list(gen_path, idx)
 
 #%%
 #[1] check all structures in the batch
-astruct_lists = get_astruct_all_list(gen_path)
+astruct_lists = get_astruct_all_list(use_path)
 
 #%%
 for idx in range(num):
     print(f"0000_{idx}")
-    structdir = join(savedir, job, str(idx))
+    structdir = join(savedir, job, task, str(idx))
     print("structdir: ", structdir)
     movie_structs(astruct_lists[idx], f"0000_{idx}", savedir=structdir, supercell=np.diag([1,1,1]))
 
