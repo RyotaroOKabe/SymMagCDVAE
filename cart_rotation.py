@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from utils.utils_plot import vis_structure
 from utils.utils_material import MatSym, MatTrans, distance_sorted, Rx, Ry, Rz, rotate_cart, switch_latvecs
-from utils.utils_sym import operation_loss, SimpleFTP, diffuse_frac, cerror_opes
+from data2.generative.magcdvae.utils.utils_e3nn import operation_loss, SimpleFTP, diffuse_frac, cerror_opes
 import math as m
 Pi = m.pi
 tol = 1e-03

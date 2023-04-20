@@ -34,7 +34,7 @@ savedir = join(homedir, 'figures')
 print("datadir: ", datadir)
 
 #%%
-job = "2023-04-13/mp_20"   #!
+job = "2023-04-15/mp_20_2"   #!
 task = 'recon'
 jobdir = join(hydradir, job)
 use_path = join(jobdir, f'eval_{task}.pt') #!
