@@ -29,7 +29,7 @@ from torch.autograd.functional import jacobian
 
 
 # [1] normal langevin
-
+# torch.no_grad()
 
 
 # [2] langevin with sgo loss
