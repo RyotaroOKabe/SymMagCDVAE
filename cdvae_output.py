@@ -44,7 +44,7 @@ lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
 num = len(lattices)
 print("jobdir: ", jobdir)
 #%%
-#[1] check each structure
+#[1] check each structure aaa
 idx = 0
 astruct_list = get_astruct_list(use_path, idx)
 
