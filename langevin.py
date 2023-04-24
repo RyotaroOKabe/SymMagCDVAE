@@ -20,3 +20,19 @@ import os, sys
 import itertools
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from torch.autograd.functional import jacobian
+
+# load data
+
+
+
+# load model
+
+
+# [1] normal langevin
+
+
+
+# [2] langevin with sgo loss
+
+
+
