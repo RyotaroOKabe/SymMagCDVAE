@@ -24,7 +24,10 @@ from torch.autograd.functional import jacobian
 from pathlib import Path
 from types import SimpleNamespace
 
+from scripts.eval_utils import load_model
+
 # load data
+model_path = ''
 
 
 
