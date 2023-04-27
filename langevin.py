@@ -33,10 +33,10 @@ model_path = ''
 tasks = ['gen']
 start_from='data'
 n_step_each=100
-step_lr=
-min_sigma=
-save_traj=
-disable_bar=
+step_lr=1e-4
+min_sigma=0
+save_traj=True
+disable_bar=False
 
 # load model
 model_path = Path(model_path)
