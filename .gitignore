@@ -6,7 +6,7 @@ slurm/
 archive/
 wandb/
 assets/
-
+.env
 
 
 
