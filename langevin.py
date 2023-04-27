@@ -1,3 +1,4 @@
+#%%
 import torch
 from torch_geometric.data import Batch
 import numpy as np
@@ -26,21 +27,27 @@ from types import SimpleNamespace
 
 from scripts.eval_utils import load_model
 
+#%%
 # load data
 model_path = ''
-
-
+tasks = ['gen']
+start_from='data'
+n_step_each=100
+step_lr=
+min_sigma=
+save_traj=
+disable_bar=
 
 # load model
-model_path = Path(args.model_path)
+model_path = Path(model_path)
 model, test_loader, cfg = load_model(
-    model_path, load_data=('recon' in args.tasks) or
-    ('opt' in args.tasks and args.start_from == 'data'))
-ld_kwargs = SimpleNamespace(n_step_each=args.n_step_each,
-                            step_lr=args.step_lr,
-                            min_sigma=args.min_sigma,
-                            save_traj=args.save_traj,
-                            disable_bar=args.disable_bar)
+    model_path, load_data=('recon' in tasks) or
+    ('opt' in tasks and start_from == 'data'))
+ld_kwargs = SimpleNamespace(n_step_each=n_step_each,
+                            step_lr=step_lr,
+                            min_sigma=min_sigma,
+                            save_traj=save_traj,
+                            disable_bar=disable_bar)
 
 
 # [1] normal langevin
