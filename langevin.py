@@ -51,7 +51,7 @@ ld_kwargs = SimpleNamespace(n_step_each=n_step_each,
 
 
 # [1] normal langevin
-# torch.no_grad()
+torch.no_grad()
 
 
 # [2] langevin with sgo loss
