@@ -1,5 +1,5 @@
 trash/
-data/
+# data/
 hydra/
 magndata_cif/
 slurm/

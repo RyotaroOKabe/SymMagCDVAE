@@ -3,6 +3,7 @@ README.md
 setup.py
 cdvae/__init__.py
 cdvae/run.py
+cdvae/run_org.py
 cdvae/run_sgo_v1.py
 cdvae/run_v1.py
 cdvae.egg-info/PKG-INFO
@@ -19,7 +20,9 @@ cdvae/pl_data/datamodule.py
 cdvae/pl_data/dataset.py
 cdvae/pl_modules/__init__.py
 cdvae/pl_modules/decoder.py
+cdvae/pl_modules/decoder_sgo.py
 cdvae/pl_modules/gnn.py
+cdvae/pl_modules/gnn_sgo.py
 cdvae/pl_modules/model.py
 cdvae/pl_modules/model_layer.py
 cdvae/pl_modules/model_sgo.py
