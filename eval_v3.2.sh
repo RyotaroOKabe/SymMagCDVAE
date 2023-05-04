@@ -5,4 +5,4 @@
 #SBATCH --time=3-23:00			# time (DD-HH:MM)
 #SBATCH --output="slurm/%x_%j.out"		# output file where all text printed to terminal will be stored
 					# current format is set to "job-name_jobID.out"
-nice python scripts/evaluate_sgo.py --model_path /home/rokabe/data2/generative/magcdvae/hydra/singlerun/2023-04-11/mp_20_org_sgo --tasks recon gen opt --save_traj True --batch_size 20
+nice python scripts/evaluate_sgo.py --model_path /home/rokabe/data2/generative/hydra/singlerun/2023-05-01/mp_20_sgo2 --tasks recon gen opt --save_traj True --batch_size 20
