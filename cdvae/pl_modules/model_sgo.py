@@ -16,7 +16,7 @@ from cdvae.common.data_utils import (
     frac_to_cart_coords, min_distance_sqr_pbc)
 from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
-from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
+from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP, sgo_cum_loss
 
 
 def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):  #OK
@@ -537,9 +537,9 @@ class CDVAE(BaseModule):
             -0.5 * torch.sum(1 + log_var - mu**2 - log_var.exp(), dim=1), dim=0)
         return kld_loss
     
-    def sgo_loss(self, sgo):    #? define
-        #TODO how to define space group operation loss? 
-        pass
+    def sgo_loss(self, noisy_frac_coords, sgo, r_max=0.8):    #!!
+        out = sgo_cum_loss(noisy_frac_coords, sgo, r_max)
+        return out
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:    #OK
         teacher_forcing = (
@@ -581,6 +581,7 @@ class CDVAE(BaseModule):
         kld_loss = outputs['kld_loss']
         composition_loss = outputs['composition_loss']
         property_loss = outputs['property_loss']
+        sgo_loss = outputs['sgo_loss'] #!!
 
         loss = (
             self.hparams.cost_natom * num_atom_loss +
@@ -589,7 +590,8 @@ class CDVAE(BaseModule):
             self.hparams.cost_type * type_loss +
             self.hparams.beta * kld_loss +
             self.hparams.cost_composition * composition_loss +
-            self.hparams.cost_property * property_loss)
+            self.hparams.cost_property * property_loss + 
+            self.hparams.cost_sgo * sgo_loss)
 
         log_dict = {
             f'{prefix}_loss': loss,
@@ -599,6 +601,7 @@ class CDVAE(BaseModule):
             f'{prefix}_type_loss': type_loss,
             f'{prefix}_kld_loss': kld_loss,
             f'{prefix}_composition_loss': composition_loss,
+            f'{prefix}_sgo_loss': sgo_loss,
         }
 
         if prefix != 'train':

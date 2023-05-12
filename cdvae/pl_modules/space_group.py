@@ -10,6 +10,7 @@ from torch import Tensor
 from torch.nn import functional as F
 from torch_scatter import scatter
 from tqdm import tqdm
+import itertools
 from pymatgen.core.structure import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from cdvae.common.data_utils import lattice_params_to_matrix_torch
@@ -85,4 +86,46 @@ def esgo_repeat_batches(esgo, batch):
 
 def esgo_repeat(esgo, num_atoms):
     return esgo.repeat_interleave(num_atoms, dim=0)
+
+
+
+def get_neighbors(frac, r_max):
+    # frac = torch.tensor(frac, requires_grad=grad)
+    natms = len(frac)
+    # get shift indices of the 1st nearest neighbor cells
+    shiftids = torch.tensor(list(itertools.product([0,1,-1], repeat=3)))
+    shifts = shiftids.repeat_interleave(natms, dim=0)
+    #fractional cell with the shift
+    frac_ex = torch.cat([frac for _ in range(27)], dim=0) + shifts 
+    # dist matrix
+    dmatrix = torch.cdist(frac, frac_ex, p=2)
+    mask = dmatrix<=r_max
+    idx_mask = torch.nonzero(mask)
+    idx_src, idx_dst = idx_mask[:,0].reshape(-1), idx_mask[:,1].reshape(-1)
+    # use the indices to get the list of vectors
+    frac_src = frac_ex[idx_src, :]
+    frac_dst = frac_ex[idx_dst, :]
+    vectors = frac_dst-frac_src
+    return idx_src, idx_dst, vectors
+
+
+def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    frac0 = frac
+    frac1 = frac@opr.T%1
+    _, _, edge_vec0 = get_neighbors(frac0, r_max)
+    _, _, edge_vec1 = get_neighbors(frac1, r_max)
+    wvec0 = edge_vec0*edge_vec0
+    wvec1 = edge_vec1*edge_vec1
+    out0 = wvec0.sum(dim=0)
+    out1 = wvec1.sum(dim=0)
+    diff= out1 - out0
+    return diff.norm()
+
+def sgo_cum_loss(frac, oprs, r_max):
+    loss = torch.zeros(1)
+    nops = len(oprs)
+    for opr in oprs:
+        diff = sgo_loss(frac, opr, r_max)
+        loss += diff
+    return loss/nops
 
