@@ -77,8 +77,10 @@ class MatSym():
 class MatTrans(MatSym):
     def __init__(self, pstruct):
         super().__init__(pstruct)
-        opes = list(set(self.spgops))
-        n_ops = len(opes)
+        self.opes = list(set(self.spgops))
+        self.oprs = [op.rotation_matrix for op in self.opes]
+        self.opts = [op.translation_vector for op in self.opes]
+        self.n_ops = len(self.opes)
         # original structure info
         self.lat = self.pstruct.lattice.matrix
         self.cart = self.pstruct.cart_coords
