@@ -29,7 +29,7 @@ file_name = 'train.csv'
 file = data_dir + '/' + file_name
 
 #%%
-df = pd.read_csv(file)
+df = pd.read_csv(file, index_col=0)
 print(df.keys())
 print(f"{file}: {len(df)}")
 df
@@ -103,19 +103,23 @@ oprs = np.stack(mt.oprs)
 #%%
 data_dir = '/home/rokabe/data2/generative/symcdvae/data/mp_20'
 data_dir_new = '/home/rokabe/data2/generative/symcdvae/data/mp_20_sgo'
-files = ['train', 'vallid', 'test']
+files =['val', 'test']
 for file in files:
-    df_ = pd.read_csv(file+'.csv')
+    df_ = pd.read_csv(os.path.join(data_dir, file+'.csv'), index_col=0)
     print(df.keys())
     print(f"{file}: {len(df)}")
-    df_['sgo'] = df_['cif'].map(lambda x: struct2oprs(build_crystal(x, niggli=True, primitive=False)))
-    df_.to_csv(data_dir_new)
+    df_['sgo'] = df_['cif'].map(lambda x: np.stack(struct2oprs(build_crystal(x, niggli=True, primitive=False))))
+    df_.to_csv(os.path.join(data_dir_new, file+'.csv'))
 
 
 #%%
-
-# load structure as pymatgen.core.Structure
-
+file_name = 'train.csv'
+file = data_dir_new + '/' + file_name
+df_tr = pd.read_csv(file, index_col=0)
+df_tr['sgo'] = df_tr['sgo'].map(lambda x: np.fromstring(x.replace('[', ' ').replace(']', ' ').replace('\n', ' '), sep=' ').reshape(-1, 3, 3))
+print(df_tr.keys())
+print(f"{file}: {len(df_tr)}")
+df_tr
 
 
 
