@@ -26,12 +26,13 @@ from torch.autograd.functional import jacobian
 from pathlib import Path
 from types import SimpleNamespace
 
-from scripts.eval_utils import load_model
+from scripts.eval_utils import load_model   # maybe need to modify this!
 import time
 # import argparse   # do not use this!!!
 
 from tqdm import tqdm
 from torch.optim import Adam
+from hydra import initialize_config_dir
 
 
 #%%
@@ -46,7 +47,42 @@ save_traj=True
 disable_bar=False
 
 # load model
-def gen():
+def load_model_sgo(model_path, load_data=False, testing=True):  #how to load the model with the updated langevin dynamics?
+    with initialize_config_dir(str(model_path)):
+        cfg = compose(config_name='hparams')
+        model = hydra.utils.instantiate(
+            cfg.model,
+            optim=cfg.optim,
+            data=cfg.data,
+            logging=cfg.logging,
+            _recursive_=False,
+        )
+        ckpts = list(model_path.glob('*.ckpt'))
+        if len(ckpts) > 0:
+            ckpt_epochs = np.array(
+                [int(ckpt.parts[-1].split('-')[0].split('=')[1]) for ckpt in ckpts])
+            ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
+        model = model.load_from_checkpoint(ckpt)
+        model.lattice_scaler = torch.load(model_path / 'lattice_scaler.pt')
+        model.scaler = torch.load(model_path / 'prop_scaler.pt')
+
+        if load_data:
+            datamodule = hydra.utils.instantiate(
+                cfg.data.datamodule, _recursive_=False, scaler_path=model_path
+            )
+            if testing:
+                datamodule.setup('test')
+                test_loader = datamodule.test_dataloader()[0]
+            else:
+                datamodule.setup()
+                test_loader = datamodule.val_dataloader()[0]
+        else:
+            test_loader = None
+
+    return model, test_loader, cfg
+
+
+def prep():
     model_path = Path(model_path)
     model, test_loader, cfg = load_model(       #!!
         model_path, load_data=('recon' in tasks) or
