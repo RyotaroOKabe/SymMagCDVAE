@@ -32,7 +32,9 @@ import time
 
 from tqdm import tqdm
 from torch.optim import Adam
+import hydra
 from hydra import initialize_config_dir
+from hydra.experimental import compose
 
 
 #%%
@@ -49,7 +51,7 @@ disable_bar=False
 # load model
 def load_model_sgo(model_path, load_data=False, testing=True):  #how to load the model with the updated langevin dynamics?
     with initialize_config_dir(str(model_path)):
-        cfg = compose(config_name='hparams')
+        cfg = compose(config_name='hparams_sgo')
         model = hydra.utils.instantiate(
             cfg.model,
             optim=cfg.optim,
@@ -82,9 +84,9 @@ def load_model_sgo(model_path, load_data=False, testing=True):  #how to load the
     return model, test_loader, cfg
 
 
-def prep():
+def prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar) :
     model_path = Path(model_path)
-    model, test_loader, cfg = load_model(       #!!
+    model, test_loader, cfg = load_model_sgo(       #!!
         model_path, load_data=('recon' in tasks) or
         ('opt' in tasks and start_from == 'data'))
     ld_kwargs = SimpleNamespace(n_step_each=n_step_each,
@@ -94,6 +96,7 @@ def prep():
                                 disable_bar=disable_bar)
     if torch.cuda.is_available():
         model.to('cuda')
+    return model, test_loader, cfg, ld_kwargs
 
 def recon():
     print('Evaluate model on the reconstruction task.')
@@ -386,6 +389,16 @@ torch.no_grad()
 
 #%%
 if __name__=='__main__':
-    gen()
+    model_path='/home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1'
+    n_step_each=100 
+    step_lr=1e-4
+    min_sigma=0 
+    save_traj=False
+    disable_bar=False
+    num_batches_to_sample=20
+    num_samples_per_z=5
+    model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
+    generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, batch_size=512, down_sample_traj_step=1)
 
 
+# %%
