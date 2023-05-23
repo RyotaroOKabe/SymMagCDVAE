@@ -1,6 +1,7 @@
 #%%
 import torch
 from torch_geometric.data import Batch
+from torch.nn import functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -9,7 +10,8 @@ import pickle as pkl
 from pymatgen.core.structure import Structure
 from pymatgen.symmetry.analyzer import *
 from pymatgen.analysis.structure_matcher import StructureMatcher
-from cdvae.common.data_utils import lattice_params_to_matrix_torch
+from pymatgen.symmetry.groups import SpaceGroup
+from cdvae.common.data_utils import lattice_params_to_matrix_torch, frac_to_cart_coords, cart_to_frac_coords
 from cdvae.pl_modules.model import CDVAE
 from torch_geometric.data import Data
 from torch.utils.data import Dataset
@@ -159,7 +161,7 @@ class CDVAE_SGO(CDVAE):
         
        
     @torch.no_grad()
-    def langevin_dynamics_sgo(self, z, ld_kwargs, sgo, alpha, gt_num_atoms=None, gt_atom_types=None):   #!! play around
+    def langevin_dynamics_sgo(self, z, ld_kwargs, sgo, alpha=1, gt_num_atoms=None, gt_atom_types=None):   #!! play around
         """
         decode crystral structure from latent embeddings.
         z: latent space
@@ -279,7 +281,7 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         for eval_idx in range(num_evals):
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
             gt_atom_types = batch.atom_types if force_atom_types else None
-            outputs = model.langevin_dynamics(
+            outputs = model.langevin_dynamics_sgo(
                 z, ld_kwargs, gt_num_atoms, gt_atom_types)
 
             # collect sampled crystals in this batch.
@@ -322,7 +324,7 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         all_frac_coords_stack, all_atom_types_stack, input_data_batch)
 
 
-def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z,
+def generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z,
                batch_size=512, down_sample_traj_step=1):
     all_frac_coords_stack = []
     all_atom_types_stack = []
@@ -342,7 +344,7 @@ def generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z,
                         device=model.device)
 
         for sample_idx in range(num_samples_per_z):
-            samples = model.langevin_dynamics(z, ld_kwargs)
+            samples = model.langevin_dynamics_sgo(z, ld_kwargs, sgo, alpha)
 
             # collect sampled crystals in this batch.
             batch_frac_coords.append(samples['frac_coords'].detach().cpu())
@@ -390,15 +392,26 @@ torch.no_grad()
 #%%
 if __name__=='__main__':
     model_path='/home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1'
-    n_step_each=100 
+    n_step_each=20 
     step_lr=1e-4
     min_sigma=0 
     save_traj=False
     disable_bar=False
-    num_batches_to_sample=20
+    num_batches_to_sample=4
     num_samples_per_z=5
+    alpha=1
+    # Define the space group number
+    spacegroup_number = 62
+
+    # Create a SpaceGroup object from the space group number
+    spacegroup = SpaceGroup.from_int_number(spacegroup_number)
+
+    # Get the space group operations
+    operations = spacegroup.symmetry_ops
+
+    sgo = [ope.rotation_matrix for ope in operations]
     model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
-    generation(model, ld_kwargs, num_batches_to_sample, num_samples_per_z, batch_size=512, down_sample_traj_step=1)
+    generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z, batch_size=512, down_sample_traj_step=1)
 
 
 # %%
