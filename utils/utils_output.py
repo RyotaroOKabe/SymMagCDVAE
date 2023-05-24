@@ -11,7 +11,10 @@ def output_eval(data_path):
     num_atoms = data['num_atoms']
     frac_coords = data['frac_coords']
     atom_types = data['atom_types']
-    eval_setting = data['eval_setting']
+    if 'eval_setting' in keys:
+        eval_setting = data['eval_setting']
+    else: 
+        eval_setting =  ''
     time = data['time']
     if 'all_frac_coords_stack' in keys:
         all_frac_coords_stack = data['all_frac_coords_stack']

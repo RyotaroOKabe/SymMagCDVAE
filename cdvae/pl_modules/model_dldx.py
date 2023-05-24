@@ -278,9 +278,15 @@ class CDVAE_SGO(BaseModule):
                 if alpha > 0:
                     frac = cur_frac_coords.clone()
                     frac.requires_grad=True
-                    sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.8)    #!
-                    sgo_loss.backward()
-                    dLdx = alpha * frac.grad
+                    with torch.enable_grad():
+                        sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5) 
+                        gradient = torch.autograd.grad(sgo_loss, frac)[0]
+                    # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5)    #!
+                    # frac.requires_grad_(True)
+                    # gradient = torch.autograd.grad(sgo_loss, frac)[0]
+                    dLdx = alpha * gradient
+                    # sgo_loss.backward()
+                    # dLdx = alpha * frac.grad
                 else: 
                     dLdx = 0    #!
                 cur_cart_coords = cur_cart_coords + step_size * pred_cart_coord_diff + noise_cart + dLdx#!

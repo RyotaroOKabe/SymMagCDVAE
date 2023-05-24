@@ -285,7 +285,7 @@ def generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_
 
 
 # [1] normal langevin
-torch.no_grad()
+# torch.no_grad()
 
 
 # [2] langevin with sgo loss
@@ -293,24 +293,41 @@ torch.no_grad()
 
 #%%
 if __name__=='__main__':
+    start_time = time.time()
     model_path='/home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1'
-    n_step_each=20 
+    n_step_each=5 
     step_lr=1e-4
     min_sigma=0 
-    save_traj=False
+    save_traj=True
     disable_bar=False
-    num_batches_to_sample=4
-    num_samples_per_z=5
+    num_batches_to_sample=1
+    num_samples_per_z=1
     model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
     alpha=1
-    # Define the space group number
-    spacegroup_number = 62
+    spacegroup_number = 60
+    label = str(spacegroup_number)
     # Create a SpaceGroup object from the space group number
     spacegroup = SpaceGroup.from_int_number(spacegroup_number)
     # Get the space group operations
     operations = spacegroup.symmetry_ops
     sgo = torch.stack([torch.Tensor(ope.rotation_matrix) for ope in operations]).to(model.device)
-    generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z, batch_size=512, down_sample_traj_step=1)
+    (frac_coords, num_atoms, atom_types, lengths, angles, 
+     all_frac_coords_stack, all_atom_types_stack) = generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z, 
+                                                               batch_size=512, down_sample_traj_step=1)
+    if label == '':
+        gen_out_name = 'eval_gen.pt'
+    else:
+        gen_out_name = f'eval_gen_{label}.pt'
 
+    torch.save({
+        'frac_coords': frac_coords,
+        'num_atoms': num_atoms,
+        'atom_types': atom_types,
+        'lengths': lengths,
+        'angles': angles,
+        'all_frac_coords_stack': all_frac_coords_stack,
+        'all_atom_types_stack': all_atom_types_stack,
+        'time': time.time() - start_time
+    }, os.path.join(model_path, gen_out_name))
 
 # %%

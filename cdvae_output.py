@@ -25,8 +25,8 @@ sub = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
 datasets = ['g', 'y', 'r']
 colors = dict(zip(datasets, palette))
 cmap = mpl.colors.LinearSegmentedColormap.from_list('cmap', [palette[k] for k in [0,2,1]])
-homedir = '/home/rokabe/data2/generative/magcdvae'
-hydradir = '/home/rokabe/data2/generative/magcdvae/hydra/singlerun/'
+homedir = '/home/rokabe/data2/generative/symcdvae'
+hydradir = '/home/rokabe/data2/generative/hydra/singlerun/'
 datadir = join(homedir, 'data/mp_20')   #!
 file =  join(datadir, 'train.csv')
 savedir = join(homedir, 'figures')
@@ -34,8 +34,8 @@ savedir = join(homedir, 'figures')
 print("datadir: ", datadir)
 
 #%%
-job = "2023-04-15/mp_20_2"   #!
-task = 'recon'
+job = "2023-05-18/mp_20_1"   #!
+task = 'gen_60'
 jobdir = join(hydradir, job)
 use_path = join(jobdir, f'eval_{task}.pt') #!
 
@@ -57,7 +57,7 @@ astruct_list = get_astruct_list(use_path, idx)
 astruct_lists = get_astruct_all_list(use_path)
 
 #%%
-for idx in range(num):
+for idx in range(num)[:1]:
     print(f"0000_{idx}")
     structdir = join(savedir, job, task, str(idx))
     print("structdir: ", structdir)

@@ -97,7 +97,7 @@ def get_neighbors(frac, r_max):
     shifts = shiftids.repeat_interleave(natms, dim=0).to(frac)
     #fractional cell with the shift
     frac_ex = torch.cat([frac for _ in range(27)], dim=0) + shifts 
-    frac_ex.requires_grad=True
+    # frac_ex.requires_grad=True
     # dist matrix
     dmatrix = torch.cdist(frac, frac_ex, p=2)
     mask = dmatrix<=r_max
@@ -111,8 +111,11 @@ def get_neighbors(frac, r_max):
 
 
 def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
-    frac0 = frac
-    frac1 = frac@opr.T%1
+    frac0 = frac.clone()#.detach()
+    frac0.requires_grad_()
+    frac1 = frac.clone()
+    frac1.requires_grad_()
+    frac1 = frac1@opr.T%1
     _, _, edge_vec0 = get_neighbors(frac0, r_max)
     _, _, edge_vec1 = get_neighbors(frac1, r_max)
     wvec0 = edge_vec0*edge_vec0
@@ -124,7 +127,7 @@ def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opo
 
 def sgo_cum_loss(frac, oprs, r_max):
     loss = torch.zeros(1).to(frac)
-    loss.requires_grad=True
+    # loss.requires_grad=True
     nops = len(oprs)
     for opr in oprs:
         diff = sgo_loss(frac, opr, r_max)
