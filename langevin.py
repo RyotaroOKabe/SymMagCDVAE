@@ -301,18 +301,15 @@ if __name__=='__main__':
     disable_bar=False
     num_batches_to_sample=4
     num_samples_per_z=5
+    model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
     alpha=1
     # Define the space group number
     spacegroup_number = 62
-
     # Create a SpaceGroup object from the space group number
     spacegroup = SpaceGroup.from_int_number(spacegroup_number)
-
     # Get the space group operations
     operations = spacegroup.symmetry_ops
-
-    sgo = [ope.rotation_matrix for ope in operations]
-    model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
+    sgo = torch.stack([torch.Tensor(ope.rotation_matrix) for ope in operations]).to(model.device)
     generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z, batch_size=512, down_sample_traj_step=1)
 
 

@@ -94,9 +94,10 @@ def get_neighbors(frac, r_max):
     natms = len(frac)
     # get shift indices of the 1st nearest neighbor cells
     shiftids = torch.tensor(list(itertools.product([0,1,-1], repeat=3)))
-    shifts = shiftids.repeat_interleave(natms, dim=0)
+    shifts = shiftids.repeat_interleave(natms, dim=0).to(frac)
     #fractional cell with the shift
     frac_ex = torch.cat([frac for _ in range(27)], dim=0) + shifts 
+    frac_ex.requires_grad=True
     # dist matrix
     dmatrix = torch.cdist(frac, frac_ex, p=2)
     mask = dmatrix<=r_max
@@ -122,7 +123,8 @@ def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opo
     return diff.norm()
 
 def sgo_cum_loss(frac, oprs, r_max):
-    loss = torch.zeros(1)
+    loss = torch.zeros(1).to(frac)
+    loss.requires_grad=True
     nops = len(oprs)
     for opr in oprs:
         diff = sgo_loss(frac, opr, r_max)
