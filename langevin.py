@@ -1,160 +1,17 @@
-#%%
+import time
+import argparse
 import torch
-from torch_geometric.data import Batch
-from torch.nn import functional as F
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-import pickle as pkl
-
-from pymatgen.core.structure import Structure
-from pymatgen.symmetry.analyzer import *
-from pymatgen.analysis.structure_matcher import StructureMatcher
-from pymatgen.symmetry.groups import SpaceGroup
-from cdvae.common.data_utils import lattice_params_to_matrix_torch, frac_to_cart_coords, cart_to_frac_coords
-from cdvae.pl_modules.model_dldx import CDVAE_SGO
-from torch_geometric.data import Data
-from torch.utils.data import Dataset
-import math as m
-
-from utils.utils_plot import vis_structure
-from utils.utils_material import MatSym, MatTrans, distance_sorted, Rx, Ry, Rz, rotate_cart, switch_latvecs
-tol = 1e-03
-import os, sys
-import itertools
-from pymatgen.analysis.structure_matcher import StructureMatcher
-from torch.autograd.functional import jacobian
-
-from pathlib import Path
-from types import SimpleNamespace
-
-from scripts.eval_utils import load_model   # maybe need to modify this!
-import time
-# import argparse   # do not use this!!!
 
 from tqdm import tqdm
 from torch.optim import Adam
-import hydra
-from hydra import initialize_config_dir
-from hydra.experimental import compose
+from pathlib import Path
+from types import SimpleNamespace
+from torch_geometric.data import Batch
+
+from eval_utils import load_model
 
 
-#%%
-# load data
-model_path = ''
-tasks = ['gen']
-start_from='data'
-n_step_each=100
-step_lr=1e-4
-min_sigma=0
-save_traj=True
-disable_bar=False
-
-# load model
-def load_model_sgo(model_path, load_data=False, testing=True):  #how to load the model with the updated langevin dynamics?
-    with initialize_config_dir(str(model_path)):
-        cfg = compose(config_name='hparams_sgo')
-        model = hydra.utils.instantiate(
-            cfg.model,
-            optim=cfg.optim,
-            data=cfg.data,
-            logging=cfg.logging,
-            _recursive_=False,
-        )
-        ckpts = list(model_path.glob('*.ckpt'))
-        if len(ckpts) > 0:
-            ckpt_epochs = np.array(
-                [int(ckpt.parts[-1].split('-')[0].split('=')[1]) for ckpt in ckpts])
-            ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
-        model = model.load_from_checkpoint(ckpt, strict=False)
-        model.lattice_scaler = torch.load(model_path / 'lattice_scaler.pt')
-        model.scaler = torch.load(model_path / 'prop_scaler.pt')
-
-        if load_data:
-            datamodule = hydra.utils.instantiate(
-                cfg.data.datamodule, _recursive_=False, scaler_path=model_path
-            )
-            if testing:
-                datamodule.setup('test')
-                test_loader = datamodule.test_dataloader()[0]
-            else:
-                datamodule.setup()
-                test_loader = datamodule.val_dataloader()[0]
-        else:
-            test_loader = None
-
-    return model, test_loader, cfg
-
-
-def prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar) :
-    model_path = Path(model_path)
-    model, test_loader, cfg = load_model_sgo(       #!!
-        model_path, load_data=('recon' in tasks) or
-        ('opt' in tasks and start_from == 'data'))
-    ld_kwargs = SimpleNamespace(n_step_each=n_step_each,
-                                step_lr=step_lr,
-                                min_sigma=min_sigma,
-                                save_traj=save_traj,
-                                disable_bar=disable_bar)
-    if torch.cuda.is_available():
-        model.to('cuda')
-    return model, test_loader, cfg, ld_kwargs
-
-def recon():
-    print('Evaluate model on the reconstruction task.')
-    start_time = time.time()
-    (frac_coords, num_atoms, atom_types, lengths, angles,
-        all_frac_coords_stack, all_atom_types_stack, input_data_batch) = reconstructon(
-        test_loader, model, ld_kwargs, args.num_evals,
-        args.force_num_atoms, args.force_atom_types, args.down_sample_traj_step)
-
-    if args.label == '':
-        recon_out_name = 'eval_recon.pt'
-    else:
-        recon_out_name = f'eval_recon_{args.label}.pt'
-
-    torch.save({
-        'eval_setting': args,
-        'input_data_batch': input_data_batch,
-        'frac_coords': frac_coords,
-        'num_atoms': num_atoms,
-        'atom_types': atom_types,
-        'lengths': lengths,
-        'angles': angles,
-        'all_frac_coords_stack': all_frac_coords_stack,
-        'all_atom_types_stack': all_atom_types_stack,
-        'time': time.time() - start_time
-    }, model_path / recon_out_name)
-
-def gen(model, test_loader, cfg):
-    print('Evaluate model on the generation task.')
-    start_time = time.time()
-
-    (frac_coords, num_atoms, atom_types, lengths, angles,
-        all_frac_coords_stack, all_atom_types_stack) = generation(
-        model, ld_kwargs, args.num_batches_to_samples, args.num_evals,
-        args.batch_size, args.down_sample_traj_step)
-
-    if args.label == '':
-        gen_out_name = 'eval_gen.pt'
-    else:
-        gen_out_name = f'eval_gen_{args.label}.pt'
-
-    torch.save({
-        'eval_setting': args,
-        'frac_coords': frac_coords,
-        'num_atoms': num_atoms,
-        'atom_types': atom_types,
-        'lengths': lengths,
-        'angles': angles,
-        'all_frac_coords_stack': all_frac_coords_stack,
-        'all_atom_types_stack': all_atom_types_stack,
-        'time': time.time() - start_time
-    }, model_path / gen_out_name)
-
-# defineLangevin class with dynamics indidivually
-
-def reconstructon(loader, model, ld_kwargs, num_evals,
+def reconstructon_sgo(loader, model, ld_kwargs, num_evals,
                   force_num_atoms=False, force_atom_types=False, down_sample_traj_step=1):
     """
     reconstruct the crystals in <loader>.
@@ -183,7 +40,7 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         for eval_idx in range(num_evals):
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
             gt_atom_types = batch.atom_types if force_atom_types else None
-            outputs = model.langevin_dynamics_sgo(
+            outputs = model.langevin_dynamics(
                 z, ld_kwargs, gt_num_atoms, gt_atom_types)
 
             # collect sampled crystals in this batch.
@@ -226,7 +83,7 @@ def reconstructon(loader, model, ld_kwargs, num_evals,
         all_frac_coords_stack, all_atom_types_stack, input_data_batch)
 
 
-def generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z,
+def generation_sgo(model, ld_kwargs, sgo, num_batches_to_sample, num_samples_per_z,
                batch_size=512, down_sample_traj_step=1):
     all_frac_coords_stack = []
     all_atom_types_stack = []
@@ -284,50 +141,153 @@ def generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_
             all_frac_coords_stack, all_atom_types_stack)
 
 
-# [1] normal langevin
-# torch.no_grad()
-
-
-# [2] langevin with sgo loss
-
-
-#%%
-if __name__=='__main__':
-    start_time = time.time()
-    model_path='/home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1'
-    n_step_each=5 
-    step_lr=1e-4
-    min_sigma=0 
-    save_traj=True
-    disable_bar=False
-    num_batches_to_sample=1
-    num_samples_per_z=1
-    model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
-    alpha=1
-    spacegroup_number = 60
-    label = str(spacegroup_number)
-    # Create a SpaceGroup object from the space group number
-    spacegroup = SpaceGroup.from_int_number(spacegroup_number)
-    # Get the space group operations
-    operations = spacegroup.symmetry_ops
-    sgo = torch.stack([torch.Tensor(ope.rotation_matrix) for ope in operations]).to(model.device)
-    (frac_coords, num_atoms, atom_types, lengths, angles, 
-     all_frac_coords_stack, all_atom_types_stack) = generation(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samples_per_z, 
-                                                               batch_size=512, down_sample_traj_step=1)
-    if label == '':
-        gen_out_name = 'eval_gen.pt'
+def optimization(model, ld_kwargs, data_loader,
+                 num_starting_points=100, num_gradient_steps=5000,
+                 lr=1e-3, num_saved_crys=10):
+    if data_loader is not None:
+        batch = next(iter(data_loader)).to(model.device)
+        _, _, z = model.encode(batch)
+        z = z[:num_starting_points].detach().clone()
+        z.requires_grad = True
     else:
-        gen_out_name = f'eval_gen_{label}.pt'
+        z = torch.randn(num_starting_points, model.hparams.hidden_dim,
+                        device=model.device)
+        z.requires_grad = True
 
-    torch.save({
-        'frac_coords': frac_coords,
-        'num_atoms': num_atoms,
-        'atom_types': atom_types,
-        'lengths': lengths,
-        'angles': angles,
-        'all_frac_coords_stack': all_frac_coords_stack,
-        'all_atom_types_stack': all_atom_types_stack,
-        'time': time.time() - start_time
-    }, os.path.join(model_path, gen_out_name))
+    opt = Adam([z], lr=lr)
+    model.freeze()
 
-# %%
+    all_crystals = []
+    interval = num_gradient_steps // (num_saved_crys-1)
+    for i in tqdm(range(num_gradient_steps)):
+        opt.zero_grad()
+        loss = model.fc_property(z).mean()
+        loss.backward()
+        opt.step()
+
+        if i % interval == 0 or i == (num_gradient_steps-1):
+            crystals = model.langevin_dynamics(z, ld_kwargs)
+            all_crystals.append(crystals)
+    return {k: torch.cat([d[k] for d in all_crystals]).unsqueeze(0) for k in
+            ['frac_coords', 'atom_types', 'num_atoms', 'lengths', 'angles']}
+
+
+def main(args):
+    # load_data if do reconstruction.
+    model_path = Path(args.model_path)
+    model, test_loader, cfg = load_model(
+        model_path, load_data=('recon' in args.tasks) or
+        ('opt' in args.tasks and args.start_from == 'data'))
+    ld_kwargs = SimpleNamespace(n_step_each=args.n_step_each,
+                                step_lr=args.step_lr,
+                                min_sigma=args.min_sigma,
+                                save_traj=args.save_traj,
+                                disable_bar=args.disable_bar)
+
+    if torch.cuda.is_available():
+        model.to('cuda')
+    
+    if len(args.sg)==0:
+        sgn = 1
+    else: 
+        sgn = int(sgn)
+    spacegroup = SpaceGroup.from_int_number(sgn)
+    operations = spacegroup.symmetry_ops
+    oprs = torch.stack([torch.Tensor(ope.rotation_matrix) for ope in operations]).to(model.device)
+
+    if 'recon' in args.tasks:
+        print('Evaluate model on the reconstruction task.')
+        start_time = time.time()
+        (frac_coords, num_atoms, atom_types, lengths, angles,
+         all_frac_coords_stack, all_atom_types_stack, input_data_batch) = reconstructon(
+            test_loader, model, ld_kwargs, oprs, args.num_evals,
+            args.force_num_atoms, args.force_atom_types, args.down_sample_traj_step)
+
+        if args.label == '':
+            recon_out_name = 'eval_recon.pt'
+        else:
+            recon_out_name = f'eval_recon_{args.label}.pt'
+
+        torch.save({
+            'eval_setting': args,
+            'input_data_batch': input_data_batch,
+            'frac_coords': frac_coords,
+            'num_atoms': num_atoms,
+            'atom_types': atom_types,
+            'lengths': lengths,
+            'angles': angles,
+            'all_frac_coords_stack': all_frac_coords_stack,
+            'all_atom_types_stack': all_atom_types_stack,
+            'time': time.time() - start_time,
+            'spacegroup': sgn,
+            'operations': oprs
+        }, model_path / recon_out_name)
+
+    if 'gen' in args.tasks:
+        print('Evaluate model on the generation task.')
+        start_time = time.time()
+
+        (frac_coords, num_atoms, atom_types, lengths, angles,
+         all_frac_coords_stack, all_atom_types_stack) = generation(
+            model, ld_kwargs, oprs, args.num_batches_to_samples, args.num_evals,
+            args.batch_size, args.down_sample_traj_step)
+
+        if args.label == '':
+            gen_out_name = 'eval_gen.pt'
+        else:
+            gen_out_name = f'eval_gen_{args.label}.pt'
+
+        torch.save({
+            'eval_setting': args,
+            'frac_coords': frac_coords,
+            'num_atoms': num_atoms,
+            'atom_types': atom_types,
+            'lengths': lengths,
+            'angles': angles,
+            'all_frac_coords_stack': all_frac_coords_stack,
+            'all_atom_types_stack': all_atom_types_stack,
+            'time': time.time() - start_time,
+            'spacegroup': sgn,
+            'operations': oprs
+        }, model_path / gen_out_name)
+
+    if 'opt' in args.tasks:
+        print('Evaluate model on the property optimization task.')
+        start_time = time.time()
+        if args.start_from == 'data':
+            loader = test_loader
+        else:
+            loader = None
+        optimized_crystals = optimization(model, ld_kwargs, oprs, loader)
+        optimized_crystals.update({'eval_setting': args,
+                                   'time': time.time() - start_time})
+
+        if args.label == '':
+            gen_out_name = 'eval_opt.pt'
+        else:
+            gen_out_name = f'eval_opt_{args.label}.pt'
+        torch.save(optimized_crystals, model_path / gen_out_name)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', required=True)
+    parser.add_argument('--tasks', nargs='+', default=['recon', 'gen', 'opt'])
+    parser.add_argument('--n_step_each', default=100, type=int)
+    parser.add_argument('--step_lr', default=1e-4, type=float)
+    parser.add_argument('--min_sigma', default=0, type=float)
+    parser.add_argument('--save_traj', default=False, type=bool)
+    parser.add_argument('--disable_bar', default=False, type=bool)
+    parser.add_argument('--num_evals', default=1, type=int)
+    parser.add_argument('--num_batches_to_samples', default=20, type=int)
+    parser.add_argument('--start_from', default='data', type=str)
+    parser.add_argument('--batch_size', default=500, type=int)
+    parser.add_argument('--force_num_atoms', action='store_true')
+    parser.add_argument('--force_atom_types', action='store_true')
+    parser.add_argument('--down_sample_traj_step', default=10, type=int)
+    parser.add_argument('--label', default='')
+    parser.add_argument('--sg', default='')
+
+    args = parser.parse_args()
+
+    main(args)

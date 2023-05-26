@@ -57,7 +57,7 @@ astruct_list = get_astruct_list(use_path, idx)
 astruct_lists = get_astruct_all_list(use_path)
 
 #%%
-for idx in range(num)[:1]:
+for idx in range(num)[:3]:
     print(f"0000_{idx}")
     structdir = join(savedir, job, task, str(idx))
     print("structdir: ", structdir)
