@@ -35,7 +35,7 @@ print("datadir: ", datadir)
 
 #%%
 job = "2023-05-18/mp_20_1"   #!
-task = 'gen_60'
+task = 'gen_3'
 jobdir = join(hydradir, job)
 use_path = join(jobdir, f'eval_{task}.pt') #!
 

@@ -295,16 +295,16 @@ def generation_sgo(model, ld_kwargs, sgo, alpha, num_batches_to_sample, num_samp
 if __name__=='__main__':
     start_time = time.time()
     model_path='/home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1'
-    n_step_each=50 
+    n_step_each=100 
     step_lr=1e-4
     min_sigma=0 
     save_traj=True
     disable_bar=False
     num_batches_to_sample=5
-    num_samples_per_z=3
+    num_samples_per_z=2
     model, test_loader, cfg, ld_kwargs = prep(model_path, n_step_each, step_lr, min_sigma, save_traj, disable_bar)
     alpha=1
-    spacegroup_number = 191
+    spacegroup_number = 4
     label = str(spacegroup_number)
     # Create a SpaceGroup object from the space group number
     spacegroup = SpaceGroup.from_int_number(spacegroup_number)
