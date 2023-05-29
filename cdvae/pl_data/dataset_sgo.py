@@ -10,6 +10,7 @@ from torch_geometric.data import Data
 from cdvae.common.utils import PROJECT_ROOT
 from cdvae.common.data_utils_sgo import (
     preprocess, preprocess_tensors, add_scaled_lattice_prop)
+from pymatgen.symmetry.groups import SpaceGroup
 
 
 class CrystDataset(Dataset):
@@ -51,8 +52,12 @@ class CrystDataset(Dataset):
         prop = self.scaler.transform(data_dict[self.prop])
         (frac_coords, atom_types, lengths, angles, edge_indices,
          to_jimages, num_atoms) = data_dict['graph_arrays']
-        oprs = data_dict['oprs']    #!
+        oprs0 = data_dict['oprs']    #!
+        # print(f'oprs0: {type(oprs0)}, {len(oprs0)}')
         sgn = data_dict['sgn']  #!
+        # print(f'sgn: {type(sgn)}, {sgn}')
+        ops = SpaceGroup.from_int_number(sgn).symmetry_ops
+        oprs = torch.stack([torch.Tensor(op.rotation_matrix) for op in ops]) 
 
         # atom_coords are fractional coordinates
         # edge_index is incremented during batching
@@ -69,7 +74,8 @@ class CrystDataset(Dataset):
             num_bonds=edge_indices.shape[0],
             num_nodes=num_atoms,  # special attribute used for batching in pytorch geometric
             y=prop.view(1, -1),
-            oprs = torch.tensor(oprs),    #!
+            oprs0 = torch.tensor(oprs0),    #!
+            oprs = oprs,    #!
             sgn = sgn,  #!
         )
         return data

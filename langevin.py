@@ -8,10 +8,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from torch_geometric.data import Batch
 
-from eval_utils import load_model
+from scripts.eval_utils_sgo import load_model_sgo
+from pymatgen.symmetry.groups import SpaceGroup
 
 
-def reconstructon_sgo(loader, model, ld_kwargs, num_evals,
+
+def reconstructon_sgo(loader, model, ld_kwargs, alpha, num_evals,
                   force_num_atoms=False, force_atom_types=False, down_sample_traj_step=1):
     """
     reconstruct the crystals in <loader>.
@@ -40,8 +42,15 @@ def reconstructon_sgo(loader, model, ld_kwargs, num_evals,
         for eval_idx in range(num_evals):
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
             gt_atom_types = batch.atom_types if force_atom_types else None
-            outputs = model.langevin_dynamics(
-                z, ld_kwargs, gt_num_atoms, gt_atom_types)
+            oprs = batch.oprs   #!
+            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+            print('batch: ', batch)
+            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+            print('oprs: ', oprs.shape)
+            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+            # break
+            outputs = model.langevin_dynamics_sgo(
+                z, ld_kwargs, oprs, alpha, gt_num_atoms, gt_atom_types)
 
             # collect sampled crystals in this batch.
             batch_frac_coords.append(outputs['frac_coords'].detach().cpu())
@@ -83,7 +92,7 @@ def reconstructon_sgo(loader, model, ld_kwargs, num_evals,
         all_frac_coords_stack, all_atom_types_stack, input_data_batch)
 
 
-def generation_sgo(model, ld_kwargs, sgo, num_batches_to_sample, num_samples_per_z,
+def generation_sgo(model, ld_kwargs, oprs, alpha, num_batches_to_sample, num_samples_per_z,
                batch_size=512, down_sample_traj_step=1):
     all_frac_coords_stack = []
     all_atom_types_stack = []
@@ -103,7 +112,7 @@ def generation_sgo(model, ld_kwargs, sgo, num_batches_to_sample, num_samples_per
                         device=model.device)
 
         for sample_idx in range(num_samples_per_z):
-            samples = model.langevin_dynamics_sgo(z, ld_kwargs, sgo, alpha)
+            samples = model.langevin_dynamics_sgo(z, ld_kwargs, oprs, alpha)
 
             # collect sampled crystals in this batch.
             batch_frac_coords.append(samples['frac_coords'].detach().cpu())
@@ -175,7 +184,7 @@ def optimization(model, ld_kwargs, data_loader,
 def main(args):
     # load_data if do reconstruction.
     model_path = Path(args.model_path)
-    model, test_loader, cfg = load_model(
+    model, test_loader, cfg = load_model_sgo(
         model_path, load_data=('recon' in args.tasks) or
         ('opt' in args.tasks and args.start_from == 'data'))
     ld_kwargs = SimpleNamespace(n_step_each=args.n_step_each,
@@ -190,17 +199,18 @@ def main(args):
     if len(args.sg)==0:
         sgn = 1
     else: 
-        sgn = int(sgn)
+        sgn = int(args.sg)
     spacegroup = SpaceGroup.from_int_number(sgn)
     operations = spacegroup.symmetry_ops
     oprs = torch.stack([torch.Tensor(ope.rotation_matrix) for ope in operations]).to(model.device)
+    alpha = float(args.alpha)
 
     if 'recon' in args.tasks:
         print('Evaluate model on the reconstruction task.')
         start_time = time.time()
         (frac_coords, num_atoms, atom_types, lengths, angles,
-         all_frac_coords_stack, all_atom_types_stack, input_data_batch) = reconstructon(
-            test_loader, model, ld_kwargs, oprs, args.num_evals,
+         all_frac_coords_stack, all_atom_types_stack, input_data_batch) = reconstructon_sgo(
+            test_loader, model, ld_kwargs, alpha, args.num_evals,
             args.force_num_atoms, args.force_atom_types, args.down_sample_traj_step)
 
         if args.label == '':
@@ -219,8 +229,8 @@ def main(args):
             'all_frac_coords_stack': all_frac_coords_stack,
             'all_atom_types_stack': all_atom_types_stack,
             'time': time.time() - start_time,
-            'spacegroup': sgn,
-            'operations': oprs
+            # 'spacegroup': sgn,
+            # 'operations': oprs
         }, model_path / recon_out_name)
 
     if 'gen' in args.tasks:
@@ -228,8 +238,8 @@ def main(args):
         start_time = time.time()
 
         (frac_coords, num_atoms, atom_types, lengths, angles,
-         all_frac_coords_stack, all_atom_types_stack) = generation(
-            model, ld_kwargs, oprs, args.num_batches_to_samples, args.num_evals,
+         all_frac_coords_stack, all_atom_types_stack) = generation_sgo(
+            model, ld_kwargs, oprs, alpha, args.num_batches_to_samples, args.num_evals,
             args.batch_size, args.down_sample_traj_step)
 
         if args.label == '':
@@ -287,6 +297,7 @@ if __name__ == '__main__':
     parser.add_argument('--down_sample_traj_step', default=10, type=int)
     parser.add_argument('--label', default='')
     parser.add_argument('--sg', default='')
+    parser.add_argument('--alpha', default=1)
 
     args = parser.parse_args()
 
