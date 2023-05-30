@@ -1,5 +1,6 @@
 trash/
 # data/
+langevin*.sh
 hydra/
 magndata_cif/
 slurm/
