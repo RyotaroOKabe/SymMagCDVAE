@@ -229,6 +229,7 @@ def main(args):
             'all_frac_coords_stack': all_frac_coords_stack,
             'all_atom_types_stack': all_atom_types_stack,
             'time': time.time() - start_time,
+            'alpha': alpha,
             # 'spacegroup': sgn,
             # 'operations': oprs
         }, model_path / recon_out_name)
@@ -257,6 +258,7 @@ def main(args):
             'all_frac_coords_stack': all_frac_coords_stack,
             'all_atom_types_stack': all_atom_types_stack,
             'time': time.time() - start_time,
+            'alpha': alpha,
             'spacegroup': sgn,
             'operations': oprs
         }, model_path / gen_out_name)
