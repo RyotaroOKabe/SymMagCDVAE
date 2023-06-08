@@ -302,5 +302,6 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', default=1)
 
     args = parser.parse_args()
+    print(args)
 
     main(args)
