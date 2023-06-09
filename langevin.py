@@ -43,12 +43,6 @@ def reconstructon_sgo(loader, model, ld_kwargs, alpha, num_evals,
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
             gt_atom_types = batch.atom_types if force_atom_types else None
             oprs = batch.oprs   #!
-            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-            print('batch: ', batch)
-            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-            print('oprs: ', oprs.shape)
-            print('\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-            # break
             outputs = model.langevin_dynamics_sgo(
                 z, ld_kwargs, oprs, alpha, gt_num_atoms, gt_atom_types)
 
