@@ -256,7 +256,8 @@ class OptEval(object):
 
 
 def get_file_paths(root_path, task, label='', suffix='pt'):
-    if args.label == '':
+    # if args.label == '':
+    if len(label) == 0:
         out_name = f'eval_{task}.{suffix}'
     else:
         out_name = f'eval_{task}_{label}.{suffix}'
@@ -361,7 +362,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', required=True)
     parser.add_argument('--label', default='')
-     parser.add_argument('--label_recon', default='')   #!
+    parser.add_argument('--label_recon', default='')   #!
     parser.add_argument('--tasks', nargs='+', default=['recon', 'gen', 'opt'])
     args = parser.parse_args()
     main(args)
