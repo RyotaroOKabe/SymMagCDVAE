@@ -367,7 +367,7 @@ class CDVAE(BaseModule):
                     dLdx = alpha * frac.grad
                 else: 
                     dLdx = 0    #!
-                cur_cart_coords = cur_cart_coords + step_size * pred_cart_coord_diff + noise_cart + dLdx#!
+                cur_cart_coords = cur_cart_coords + step_size * pred_cart_coord_diff + noise_cart - dLdx#!
                 cur_frac_coords = cart_to_frac_coords(
                     cur_cart_coords, lengths, angles, num_atoms)
 
