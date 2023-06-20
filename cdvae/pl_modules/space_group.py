@@ -149,3 +149,39 @@ def sgo_cum_loss(frac, oprs, r_max):
         loss += diff
     return loss/nops
 
+
+#230620 
+def perm_invariant_loss(tensor1, tensor2):
+    dists = torch.cdist(tensor1, tensor2)
+    min_dists = dists.min(dim=1)[0]
+    return min_dists.mean()
+
+def symmetric_perm_invariant_loss(tensor1, tensor2):
+    loss1 = perm_invariant_loss(tensor1, tensor2)
+    loss2 = perm_invariant_loss(tensor2, tensor1)
+    return (loss1 + loss2) / 2
+
+def sgo_loss_perm(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
+    frac0 = frac.clone()#.detach()
+    frac0.requires_grad_()
+    frac1 = frac.clone()
+    frac1.requires_grad_()
+    frac1 = frac1@opr.T%1
+    _, _, edge_vec0 = get_neighbors(frac0, r_max)
+    _, _, edge_vec1 = get_neighbors(frac1, r_max)
+    return symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
+
+def sgo_cum_loss_perm(frac, oprs, r_max):
+    """
+    Cumulative loss from space group operations.
+    """
+    loss = torch.zeros(1).to(frac)
+    # loss.requires_grad=True
+    nops = len(oprs)
+    for opr in oprs:
+        diff = sgo_loss_perm(frac, opr, r_max)
+        loss += diff
+    return loss/nops
