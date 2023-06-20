@@ -23,6 +23,9 @@ def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):  #OK
     return nn.Sequential(*mods)
 
 def struct2spgop(batch):
+    """
+    Get space group operation from the pymatgen.core.Structure
+    """
     # print("=====batch start======")
     # print(batch)
     num = len(batch)
@@ -65,6 +68,9 @@ def struct2spgop(batch):
    
 
 class Embed_SPGOP(torch.nn.Module):
+    """
+    Embed the space group operation as the vector to incorporate it into GNN
+    """
     def __init__(self, hidden_dim, out_dim, fc_num_layers) -> None:
         super().__init__()
         self.in_dim = 9
@@ -90,6 +96,9 @@ def esgo_repeat(esgo, num_atoms):
 
 
 def get_neighbors(frac, r_max):
+    """
+    Get the neighbor lists in fractional coordinates. 
+    """
     # frac = torch.tensor(frac, requires_grad=grad)
     natms = len(frac)
     # get shift indices of the 1st nearest neighbor cells
@@ -111,6 +120,9 @@ def get_neighbors(frac, r_max):
 
 
 def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
     frac0 = frac.clone()#.detach()
     frac0.requires_grad_()
     frac1 = frac.clone()
@@ -126,6 +138,9 @@ def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opo
     return diff.norm()
 
 def sgo_cum_loss(frac, oprs, r_max):
+    """
+    Cumulative loss from space group operations.
+    """
     loss = torch.zeros(1).to(frac)
     # loss.requires_grad=True
     nops = len(oprs)
