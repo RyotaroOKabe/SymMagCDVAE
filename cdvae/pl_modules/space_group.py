@@ -185,3 +185,17 @@ def sgo_cum_loss_perm(frac, oprs, r_max):
         diff = sgo_loss_perm(frac, opr, r_max)
         loss += diff
     return loss/nops
+
+def diffuse_frac(pstruct, sigma=0.1):
+    frac = pstruct.frac_coords
+    lat = pstruct.lattice.matrix
+    spec = pstruct.species
+    dist = np.random.normal(loc=0.0, scale=sigma, size=frac.shape)
+    frac1 = frac + dist
+    struct_out = Structure(
+        lattice=lat,
+        species=spec,
+        coords=frac1,
+        coords_are_cartesian=False
+    )
+    return struct_out
