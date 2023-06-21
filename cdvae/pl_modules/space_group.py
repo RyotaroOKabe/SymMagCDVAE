@@ -23,6 +23,9 @@ def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):  #OK
     return nn.Sequential(*mods)
 
 def struct2spgop(batch):
+    """
+    Get space group operation from the pymatgen.core.Structure
+    """
     # print("=====batch start======")
     # print(batch)
     num = len(batch)
@@ -65,6 +68,9 @@ def struct2spgop(batch):
    
 
 class Embed_SPGOP(torch.nn.Module):
+    """
+    Embed the space group operation as the vector to incorporate it into GNN
+    """
     def __init__(self, hidden_dim, out_dim, fc_num_layers) -> None:
         super().__init__()
         self.in_dim = 9
@@ -90,6 +96,9 @@ def esgo_repeat(esgo, num_atoms):
 
 
 def get_neighbors(frac, r_max):
+    """
+    Get the neighbor lists in fractional coordinates. 
+    """
     # frac = torch.tensor(frac, requires_grad=grad)
     natms = len(frac)
     # get shift indices of the 1st nearest neighbor cells
@@ -111,6 +120,9 @@ def get_neighbors(frac, r_max):
 
 
 def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
     frac0 = frac.clone()#.detach()
     frac0.requires_grad_()
     frac1 = frac.clone()
@@ -126,6 +138,9 @@ def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opo
     return diff.norm()
 
 def sgo_cum_loss(frac, oprs, r_max):
+    """
+    Cumulative loss from space group operations.
+    """
     loss = torch.zeros(1).to(frac)
     # loss.requires_grad=True
     nops = len(oprs)
@@ -134,3 +149,53 @@ def sgo_cum_loss(frac, oprs, r_max):
         loss += diff
     return loss/nops
 
+
+#230620 
+def perm_invariant_loss(tensor1, tensor2):
+    dists = torch.cdist(tensor1, tensor2)
+    min_dists = dists.min(dim=1)[0]
+    return min_dists.mean()
+
+def symmetric_perm_invariant_loss(tensor1, tensor2):
+    loss1 = perm_invariant_loss(tensor1, tensor2)
+    loss2 = perm_invariant_loss(tensor2, tensor1)
+    return (loss1 + loss2) / 2
+
+def sgo_loss_perm(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
+    frac0 = frac.clone()#.detach()
+    frac0.requires_grad_()
+    frac1 = frac.clone()
+    frac1.requires_grad_()
+    frac1 = frac1@opr.T%1
+    _, _, edge_vec0 = get_neighbors(frac0, r_max)
+    _, _, edge_vec1 = get_neighbors(frac1, r_max)
+    return symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
+
+def sgo_cum_loss_perm(frac, oprs, r_max):
+    """
+    Cumulative loss from space group operations.
+    """
+    loss = torch.zeros(1).to(frac)
+    # loss.requires_grad=True
+    nops = len(oprs)
+    for opr in oprs:
+        diff = sgo_loss_perm(frac, opr, r_max)
+        loss += diff
+    return loss/nops
+
+def diffuse_frac(pstruct, sigma=0.1):
+    frac = pstruct.frac_coords
+    lat = pstruct.lattice.matrix
+    spec = pstruct.species
+    dist = np.random.normal(loc=0.0, scale=sigma, size=frac.shape)
+    frac1 = frac + dist
+    struct_out = Structure(
+        lattice=lat,
+        species=spec,
+        coords=frac1,
+        coords_are_cartesian=False
+    )
+    return struct_out

@@ -1,6 +1,7 @@
 trash/
 # data/
 langevin*.sh
+*nsc.sh
 hydra/
 magndata_cif/
 slurm/

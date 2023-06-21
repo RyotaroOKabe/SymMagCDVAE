@@ -295,6 +295,17 @@ fig.patch.set_facecolor('white')
 # # ax.set_yscale('log')
 # fig.patch.set_facecolor('white')
 
+#%%
+# 230620 loss with permutation invarinace
 
+def perm_invariant_loss(tensor1, tensor2):
+    dists = torch.cdist(tensor1, tensor2)
+    min_dists = dists.min(dim=1)[0]
+    return min_dists.mean()
+
+def symmetric_perm_invariant_loss(tensor1, tensor2):
+    loss1 = perm_invariant_loss(tensor1, tensor2)
+    loss2 = perm_invariant_loss(tensor2, tensor1)
+    return (loss1 + loss2) / 2
 
 #%%
