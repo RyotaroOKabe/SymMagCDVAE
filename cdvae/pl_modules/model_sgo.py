@@ -16,7 +16,8 @@ from cdvae.common.data_utils import (
     frac_to_cart_coords, min_distance_sqr_pbc)
 from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
-from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP, sgo_cum_loss
+from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
+from cdvae.pl_modules.space_group import sgo_cum_loss_perm as sgo_cum_loss  #!
 
 
 def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):  #OK

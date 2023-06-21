@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=rokabe		# username to associate with job
-#SBATCH --job-name=data		# a desired name to appear alongside job ID in squeue
+#SBATCH --job-name=data2		# a desired name to appear alongside job ID in squeue
 #SBATCH --gres=gpu:1 			# number of GPUs (per node)
 #SBATCH --time=3-23:00			# time (DD-HH:MM)
 #SBATCH --output="slurm/%x_%j.out"		# output file where all text printed to terminal will be stored
 					# current format is set to "job-name_jobID.out"
-nice python langevin.py --model_path /home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1 --tasks gen --sg 5 --label n5a20 --alpha 20 --save_traj True
+nice python langevin.py --model_path /home/rokabe/data2/generative/hydra/singlerun/2023-05-18/mp_20_1 --tasks gen --sg 4 --label sg4a10 --alpha 10 --save_traj True

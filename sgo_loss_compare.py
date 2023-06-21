@@ -6,6 +6,7 @@ import torch
 from torch_geometric.data import Batch
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import time
 import pickle as pkl
 
@@ -20,6 +21,7 @@ import math as m
 
 from utils.utils_plot import vis_structure
 from utils.utils_material import MatSym, MatTrans, distance_sorted, Rx, Ry, Rz, rotate_cart, switch_latvecs
+from utils.plot_3d import create_animation
 tol = 1e-03
 import os, sys
 import itertools
@@ -90,11 +92,16 @@ print('frac1.grad: ', frac1.grad)
 #%%
 # with grad
 # test with the diffused structures
-logvars = np.linspace(-3, 0, num=100) #range(10, -5, -1)
+logvars = np.linspace(-2, 0, num=51) #range(10, -5, -1)
 xs = [10**l for l in logvars]
 ys0 = []
 ys1 = []
+frac0_list = []
+grads0_list = []
+frac1_list = []
+grads1_list = []
 pstruct = cosn  #mpdata['mp-1003']#kstruct
+frac_coords0 = pstruct.frac_coords  # ooriginal
 mt = MatTrans(pstruct)
 opes = list(set(mt.spgops))
 oprs = [op.rotation_matrix for op in opes]
@@ -118,9 +125,20 @@ for i, l in enumerate(logvars):
     frac0.requires_grad, frac1.requires_grad = grad, grad
     loss0 = sgo_cum_loss(frac0, oprs, r_max)
     ys0.append(loss0)
+    loss0.backward()
+    grads0 = frac0.grad
+    frac0_list.append(frac0.detach().numpy())
+    grads0_list.append(-grads0.detach().numpy())
     loss1 = sgo_cum_loss_perm(frac1, oprs, r_max)
     ys1.append(loss1)
-
+    loss1.backward()
+    grads1 = frac1.grad
+    frac1_list.append(frac1.detach().numpy())
+    grads1_list.append(-grads1.detach().numpy())
+    # plot_3d_vectors(frac_coords0, frac0.detach().numpy(), -grads0.detach().numpy())
+    # plot_3d_vectors(frac_coords0, frac1.detach().numpy(), -grads1.detach().numpy())
+create_animation(frac_coords0, frac0_list, grads0_list, 'figures/cosn0')
+create_animation(frac_coords0, frac1_list, grads1_list, 'figures/cosn1')
 
 fig, ax = plt.subplots(1,1,figsize=(8,8))
 ys0 = [y.detach().numpy() for y in ys0]
