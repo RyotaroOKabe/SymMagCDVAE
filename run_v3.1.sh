@@ -5,4 +5,4 @@
 #SBATCH --time=3-23:00			# time (DD-HH:MM)
 #SBATCH --output="slurm/%x_%j.out"		# output file where all text printed to terminal will be stored
 					# current format is set to "job-name_jobID.out"
-nice python cdvae/run.py data=mp_20 expname=mp20_1 model.predict_property=True
+nice python cdvae/run.py data=mp_20 expname=mp20_3 model.predict_property=True

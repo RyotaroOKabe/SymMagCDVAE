@@ -43,9 +43,6 @@ spec = cosn.species
 natms = len(frac)
 
 #%%
-
-
-#%%
 # test the single loss (w/o cum)
 pstruct = cosn
 frac = torch.tensor(pstruct.frac_coords)

@@ -161,7 +161,7 @@ def symmetric_perm_invariant_loss(tensor1, tensor2):
     loss2 = perm_invariant_loss(tensor2, tensor1)
     return (loss1 + loss2) / 2
 
-def sgo_loss_perm(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, threshold=1e-3): # can be vectorized for multiple space group opoerations?
     """
     Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
     """
@@ -172,9 +172,20 @@ def sgo_loss_perm(frac, opr, r_max): # can be vectorized for multiple space grou
     frac1 = frac1@opr.T%1
     _, _, edge_vec0 = get_neighbors(frac0, r_max)
     _, _, edge_vec1 = get_neighbors(frac1, r_max)
+    if use_min_edges:
+        edge_len0 = edge_vec0.norm(dim=-1)
+        edge_len1 = edge_vec1.norm(dim=-1)
+        mask0 = edge_len0 > threshold
+        mask1 = edge_len1 > threshold
+        edge_len_f0 = edge_len0[mask0]
+        idx_edge_min0 = torch.nonzero(edge_len_f0 == edge_len_f0.min()).flatten()
+        edge_vec0 = edge_vec0[idx_edge_min0]
+        edge_len_f1 = edge_len1[mask1]
+        idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
+        edge_vec1 = edge_vec1[idx_edge_min1]
     return symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
-def sgo_cum_loss_perm(frac, oprs, r_max):
+def sgo_cum_loss_perm(frac, oprs, r_max, use_min_edges=False):
     """
     Cumulative loss from space group operations.
     """
@@ -182,7 +193,7 @@ def sgo_cum_loss_perm(frac, oprs, r_max):
     # loss.requires_grad=True
     nops = len(oprs)
     for opr in oprs:
-        diff = sgo_loss_perm(frac, opr, r_max)
+        diff = sgo_loss_perm(frac, opr, r_max, use_min_edges, threshold=1e-3)
         loss += diff
     return loss/nops
 
@@ -199,3 +210,67 @@ def diffuse_frac(pstruct, sigma=0.1):
         coords_are_cartesian=False
     )
     return struct_out
+
+# 230714
+def perm_invariant_loss_assign(tensor1, tensor2):
+    dists = torch.cdist(tensor1, tensor2)
+    row_indices, col_indices = linear_sum_assignment_torch(dists)
+    return torch.sum(dists[row_indices, col_indices])
+    # min_dists = dists.min(dim=1)[0]
+    # return min_dists.mean()
+
+def symmetric_perm_invariant_loss_assign(tensor1, tensor2):
+    loss1 = perm_invariant_loss_assign(tensor1, tensor2)
+    loss2 = perm_invariant_loss_assign(tensor2, tensor1)
+    return (loss1 + loss2) / 2
+
+
+def sgo_loss_perm_assign(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
+    frac0 = frac.clone()#.detach()
+    frac0.requires_grad_()
+    frac1 = frac.clone()
+    frac1.requires_grad_()
+    frac1 = frac1@opr.T%1
+    _, _, edge_vec0 = get_neighbors(frac0, r_max)
+    _, _, edge_vec1 = get_neighbors(frac1, r_max)
+    return symmetric_perm_invariant_loss_assign(edge_vec0, edge_vec1)
+
+def sgo_cum_loss_perm_assign(frac, oprs, r_max):
+    """
+    Cumulative loss from space group operations.
+    """
+    loss = torch.zeros(1).to(frac)
+    # loss.requires_grad=True
+    nops = len(oprs)
+    for opr in oprs:
+        diff = sgo_loss_perm_assign(frac, opr, r_max)
+        loss += diff
+    return loss/nops
+
+def linear_sum_assignment_torch(cost_matrix):
+    """
+    Solve the linear sum assignment problem using the Hungarian algorithm for a distance matrix represented by a torch.tensor.
+
+    Args:
+        cost_matrix (torch.tensor): The distance matrix representing the costs or profits of assigning agents to tasks.
+
+    Returns:
+        tuple: A tuple containing two torch.tensor arrays representing the row indices and column indices of the optimal assignments.
+    """
+    # Convert the cost matrix to a numpy array
+    cost_matrix_np = cost_matrix.detach().numpy()
+
+    # Import the linear_sum_assignment function from scipy.optimize
+    from scipy.optimize import linear_sum_assignment
+
+    # Solve the linear sum assignment problem using linear_sum_assignment
+    row_indices, col_indices = linear_sum_assignment(cost_matrix_np)
+
+    # Convert the row indices and column indices to torch.tensor
+    row_indices_torch = torch.from_numpy(row_indices)
+    col_indices_torch = torch.from_numpy(col_indices)
+
+    return row_indices_torch, col_indices_torch
