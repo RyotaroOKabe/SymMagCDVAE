@@ -3,6 +3,20 @@ from pymatgen.core import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 import pickle as pkl
 
+def get_space_group_indices(structures):
+    space_group_indices = {}
+
+    for i, structure in enumerate(structures):
+        sga = SpacegroupAnalyzer(structure)
+        space_group_number = sga.get_space_group_number()
+
+        if space_group_number in space_group_indices:
+            space_group_indices[space_group_number].append(i)
+        else:
+            space_group_indices[space_group_number] = [i]
+
+    return space_group_indices
+
 def has_kagome_lattice(structure):
     """
     Function to test the presence of a Kagome lattice structure in a crystal material.
@@ -117,7 +131,7 @@ import os
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 
 # Directory where the downloaded files are saved
-download_pbe3d=False
+download_pbe3d=True
 if download_pbe3d:
     download_directory = '/home/rokabe/data2/generative/database/pbe3d'
 
@@ -140,6 +154,20 @@ if download_pbe3d:
 
     # Now 'entries' contains all the entries from the downloaded files
     print(f'total data (pbe3d): {len(mpids)}')
+
+structs = [entry.structure for entry in entries]
+filename1=f'/home/rokabe/data2/generative/database/pbe3d_structs{len(structs)}.pkl'
+with open(filename1, 'wb') as file:
+    pkl.dump(structs, file)
+space_group_indices = get_space_group_indices(structs)
+filename2=f'/home/rokabe/data2/generative/database/pbe3d_sgns{len(structs)}.pkl'
+with open(filename2, 'wb') as file:
+    pkl.dump(space_group_indices, file)
+
+# Print the dictionary of space group indices
+for space_group_number, indices in space_group_indices.items():
+    print(f"Space Group {space_group_number}: {indices}")
+
 
 
 #%%

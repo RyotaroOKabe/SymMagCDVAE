@@ -161,7 +161,7 @@ def symmetric_perm_invariant_loss(tensor1, tensor2):
     loss2 = perm_invariant_loss(tensor2, tensor1)
     return (loss1 + loss2) / 2
 
-def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, threshold=1e-3): # can be vectorized for multiple space group opoerations?
+def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, num_lens=1, threshold=1e-3): # can be vectorized for multiple space group opoerations?
     """
     Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
     """
@@ -178,14 +178,33 @@ def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, threshold=1e-3): # can 
         mask0 = edge_len0 > threshold
         mask1 = edge_len1 > threshold
         edge_len_f0 = edge_len0[mask0]
-        idx_edge_min0 = torch.nonzero(edge_len_f0 == edge_len_f0.min()).flatten()
-        edge_vec0 = edge_vec0[idx_edge_min0]
         edge_len_f1 = edge_len1[mask1]
-        idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
+        if num_lens>1:
+            target_lens0 = torch.sort(torch.unique(edge_len_f0)).values[:num_lens]
+            target_lens1 = torch.sort(torch.unique(edge_len_f1)).values[:num_lens]
+            indices0, indices1 = [], []
+            for target_len in target_lens0:
+                # print(target_len.shape)
+                # print(torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1))))
+                target_indices = torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1)))[-1]
+                indices0.append(target_indices)
+            for target_len in target_lens1:
+                # print(target_len)
+                target_indices = torch.where(torch.eq(edge_len_f1, target_len.reshape(1,-1)))[-1]
+                indices1.append(target_indices)
+            indices0, indices1 = torch.cat(indices0), torch.cat(indices1)
+            # print('indices0: ', indices0)
+            # print('indices1: ', indices1)
+            idx_edge_min0 = torch.tensor(indices0)
+            idx_edge_min1 = torch.tensor(indices1)
+        else:
+            idx_edge_min0 = torch.nonzero(edge_len_f0 == edge_len_f0.min()).flatten()
+            idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
+        edge_vec0 = edge_vec0[idx_edge_min0]
         edge_vec1 = edge_vec1[idx_edge_min1]
     return symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
-def sgo_cum_loss_perm(frac, oprs, r_max, use_min_edges=False):
+def sgo_cum_loss_perm(frac, oprs, r_max, use_min_edges=False, num_lens=1):
     """
     Cumulative loss from space group operations.
     """
@@ -193,7 +212,7 @@ def sgo_cum_loss_perm(frac, oprs, r_max, use_min_edges=False):
     # loss.requires_grad=True
     nops = len(oprs)
     for opr in oprs:
-        diff = sgo_loss_perm(frac, opr, r_max, use_min_edges, threshold=1e-3)
+        diff = sgo_loss_perm(frac, opr, r_max, use_min_edges, num_lens, threshold=1e-3)
         loss += diff
     return loss/nops
 
