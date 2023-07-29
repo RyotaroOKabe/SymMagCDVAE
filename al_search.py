@@ -2,6 +2,7 @@
 from pymatgen.core import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 import pickle as pkl
+from utils.utils_plot import *
 
 def get_space_group_indices(structures):
     space_group_indices = {}
@@ -16,100 +17,6 @@ def get_space_group_indices(structures):
             space_group_indices[space_group_number] = [i]
 
     return space_group_indices
-
-def has_kagome_lattice(structure):
-    """
-    Function to test the presence of a Kagome lattice structure in a crystal material.
-
-    Args:
-        structure (Structure): The crystal material as a pymatgen Structure object.
-
-    Returns:
-        bool: True if the material has a Kagome lattice structure, False otherwise.
-    """
-    # Check if the lattice is periodic
-    if not isinstance(structure, Structure) or not structure.is_ordered:
-        return False
-
-    # Check the connectivity pattern of the lattice to identify the Kagome lattice
-    for site in structure:
-        neighbors = structure.get_neighbors(site, 3.0)  # Adjust the distance cutoff as needed
-        if len(neighbors) != 3:
-            return False
-
-        neighbor_coords = [neighbor[0].coords for neighbor in neighbors]
-        if len(set(neighbor_coords)) != 3:
-            return False
-
-    return True
-
-def has_honeycomb_lattice(structure):
-    """
-    Check if a crystal material structure contains a honeycomb lattice structure.
-
-    Args:
-        structure (Structure): The crystal material structure as a pymatgen Structure object.
-
-    Returns:
-        bool: True if the structure contains a honeycomb lattice structure, False otherwise.
-    """
-    # Check if the lattice is hexagonal
-    if not isinstance(structure, Structure) or not structure.is_ordered:
-        return False
-    
-    analyzer = SpacegroupAnalyzer(structure)
-    lattice_type = analyzer.get_lattice_type()
-
-    if lattice_type != "hexagonal":
-        return False
-
-    # Check if the structure has two unique atomic species
-    unique_species = set(site.species_string for site in structure)
-    if len(unique_species) != 2:
-        return False
-
-    # Check if the angles between lattice vectors are close to 120 degrees
-    angles = structure.lattice.angles
-    angle_tolerance = 5.0  # Adjust the tolerance as needed
-    if all(abs(angle - 120) < angle_tolerance for angle in angles):
-        return True
-
-    return False
-
-def has_triangular_lattice(structure):
-    """
-    Check if a crystal material structure contains a triangular lattice structure.
-
-    Args:
-        structure (Structure): The crystal material structure as a pymatgen Structure object.
-
-    Returns:
-        bool: True if the structure contains a triangular lattice structure, False otherwise.
-    """
-    # Check if the lattice is hexagonal
-    if not isinstance(structure, Structure) or not structure.is_ordered:
-        return False
-    
-    analyzer = SpacegroupAnalyzer(structure)
-    lattice_type = analyzer.get_lattice_type()
-
-    if lattice_type != "hexagonal":
-        return False
-
-    # Check if the structure has one unique atomic species
-    unique_species = set(site.species_string for site in structure)
-    if len(unique_species) != 1:
-        return False
-
-    # Check if the angles between lattice vectors are close to 60 degrees
-    angles = structure.lattice.angles
-    angle_tolerance = 5.0  # Adjust the tolerance as needed
-    if all(abs(angle - 60) < angle_tolerance for angle in angles):
-        return True
-
-    return False
-
-
 
 #%%
 # load data
@@ -131,7 +38,8 @@ import os
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 
 # Directory where the downloaded files are saved
-download_pbe3d=True
+download_pbe3d=False
+
 if download_pbe3d:
     download_directory = '/home/rokabe/data2/generative/database/pbe3d'
 
@@ -154,19 +62,28 @@ if download_pbe3d:
 
     # Now 'entries' contains all the entries from the downloaded files
     print(f'total data (pbe3d): {len(mpids)}')
+ 
+    structs = [entry.structure for entry in entries]
+    filename1=f'/home/rokabe/data2/generative/database/pbe3d_structs{len(structs)}.pkl'
+    with open(filename1, 'wb') as file:
+        pkl.dump(structs, file)
+    space_group_indices = get_space_group_indices(structs)
+    filename2=f'/home/rokabe/data2/generative/database/pbe3d_sgns{len(structs)}.pkl'
+    with open(filename2, 'wb') as file:
+        pkl.dump(space_group_indices, file)
 
-structs = [entry.structure for entry in entries]
-filename1=f'/home/rokabe/data2/generative/database/pbe3d_structs{len(structs)}.pkl'
-with open(filename1, 'wb') as file:
-    pkl.dump(structs, file)
-space_group_indices = get_space_group_indices(structs)
-filename2=f'/home/rokabe/data2/generative/database/pbe3d_sgns{len(structs)}.pkl'
-with open(filename2, 'wb') as file:
-    pkl.dump(space_group_indices, file)
+else: 
+    num_structs = 2360076
+    filename1=f'/home/rokabe/data2/generative/database/pbe3d_structs{num_structs}.pkl'
+    filename2=f'/home/rokabe/data2/generative/database/pbe3d_sgns{num_structs}.pkl'
+    with open(filename1, 'rb') as file:
+        structs = pkl.load(file)
+    with open(filename2, 'rb') as file:
+        space_group_indices = pkl.load(file)
 
 # Print the dictionary of space group indices
-for space_group_number, indices in space_group_indices.items():
-    print(f"Space Group {space_group_number}: {indices}")
+# for space_group_number, indices in space_group_indices.items():
+#     print(f"Space Group {space_group_number}: {indices}")
 
 
 
@@ -174,66 +91,171 @@ for space_group_number, indices in space_group_indices.items():
 # mini test: CoSn and Silicon
 cosn = mpdata['mp-20536']
 silicon = mpdata['mp-149']
-print('[CoSn] has Kagome lattice: ', has_kagome_lattice(cosn))
-print('[Si2] has Kagome lattice: ', has_kagome_lattice(silicon))
+# print('[CoSn] has Kagome lattice: ', has_kagome_lattice(cosn))
+# print('[Si2] has Kagome lattice: ', has_kagome_lattice(silicon))
 
 
 #%%
-# Material screening
-def screen_materials(mpdata):
+# 230724
+from pymatgen.core.structure import Structure
+from pymatgen.core.periodic_table import Element
+
+def decompose_by_atomic_species(crystal_structure):
     """
-    Function to screen material structures in a database and identify specific lattice types.
+    Decompose a crystal into components based on atomic species.
 
     Args:
-        mpdata (dict): Dictionary containing material structures as pymatgen Structure objects.
-                       The keys of the dictionary are the Materials Project IDs.
+        crystal_structure (pymatgen.core.Structure): The input crystal structure.
 
     Returns:
-        dict: Dictionary containing the Materials Project IDs as keys and lattice type as values.
-              The lattice type can be 'Kagome', 'Honeycomb', 'Triangular', or 'Unknown'.
+        list: A list of pymatgen.core.Structure objects, each containing only one atomic species.
     """
-    screened_materials = {}
+    species_map = {Element(s): [] for s in set(crystal_structure.species)}  # Create an empty list for each species
 
-    for mp_id, structure in mpdata.items():
-        lattice_type = 'Unknown'
+    for site in crystal_structure:
+        species_map[site.specie].append(site)  # Append the site to the appropriate species list
 
-        # Check for Kagome lattice structure
-        if has_kagome_lattice(structure):
-            lattice_type = 'Kagome'
-        # Check for honeycomb lattice structure
-        elif has_honeycomb_lattice(structure):
-            lattice_type = 'Honeycomb'
-        # Check for triangular lattice structure
-        elif has_triangular_lattice(structure):
-            lattice_type = 'Triangular'
+    decomposed_structures = []
 
-        screened_materials[mp_id] = lattice_type
+    for species, sites in species_map.items():
+        # Create a new structure with sites containing the current species
+        species_structure = Structure.from_sites(sites)
+        decomposed_structures.append(species_structure)
 
-    return screened_materials
+    return decomposed_structures
+
+
+def find_minimum_interatomic_distance(crystal_structure):
+    """
+    Find the minimum interatomic distance in the crystal structure.
+
+    Args:
+        crystal_structure (pymatgen.core.Structure): The input crystal structure.
+
+    Returns:
+        float: The minimum interatomic distance in Angstroms.
+    """
+    min_distance = float("inf")  # Initialize with a large value
+
+    # Loop over all pairs of atoms and calculate the distance between them
+    for i in range(len(crystal_structure)):
+        for j in range(i + 1, len(crystal_structure)):
+            distance = crystal_structure.get_distance(i, j)
+            if distance < min_distance:
+                min_distance = distance
+
+    return min_distance
+
+# Example usage:
+# Assuming you have a pymatgen.core.Structure object named 'crystal'
+# minimum_distance = find_minimum_interatomic_distance(crystal)
+
+# print(f"Minimum interatomic distance: {minimum_distance:.3f} Å")
+
+def search_archimedean_lattice_layer_structure(crystal_structure, show_struct=False):
+    """
+    Search for Archimedean lattice layer structures in a crystal considering periodic boundary condition.
+
+    Args:
+        crystal_structure (pymatgen.core.Structure): The input crystal structure.
+
+    Returns:
+        list: A list of tuples containing the atomic species and the properties of each layer structure found.
+              Each tuple has the following format: (species, min_interatomic_distance, neighbor_counts, angles, same_plane)
+    """
+    if not isinstance(crystal_structure, Structure) or not crystal_structure.is_ordered:
+        raise ValueError("The input structure must be a valid ordered Structure object.")
+
+    # Check if the lattice is hexagonal
+    analyzer = SpacegroupAnalyzer(crystal_structure)
+    lattice_type = analyzer.get_lattice_type()
+
+    if lattice_type != "hexagonal":
+        raise ValueError("The lattice type must be hexagonal to search for Archimedean lattice layer structures.")
+
+    # Decompose the structure by the atomic species
+    decomposed_structures = decompose_by_atomic_species(crystal_structure)
+
+    num_neighbors = []
+    results = []
+
+    # Create a NearNeighbors object using the crystal structure
+    # nn = NearNeighbors()
+
+    for i, structure in enumerate(decomposed_structures):
+        # print(f"Structure {idx + 1}: {structure.formula}")
+        if show_struct:
+            vis_structure(structure, supercell=np.eye(3), title=None, rot='5x,5y,90z', savedir=None, palette=palette)
+
+        dmin = find_minimum_interatomic_distance(structure)
+        for site in structure:
+            print('site: ', site.frac_coords)
+            neighbors =structure.get_neighbors(site, dmin+1e-2)  # Adjust the distance cutoff as needed
+            print('neighbor: ', [neighbor.frac_coords for neighbor in neighbors])
+            num_neighbors.append(len(neighbors))
+    if 4 in num_neighbors:
+        results.append('kagome')
+    if 3 in num_neighbors:
+        results.append('honeycomb')
+    if 0 in num_neighbors or 6 in num_neighbors:
+        results.append('triangular')
+
+    return results
+
+    # for species_structure in decomposed_structures:
+    #     species = species_structure.species[0].name
+
+    #     # Check the minimum distance of interatomic distances
+    #     min_distance = find_minimum_interatomic_distance(species_structure)
+
+    #     # Check the neighbors for each atom using the min distance
+    #     nn_info_list = nn.get_all_nn_info(species_structure, min_distance)
+
+    #     # Check the counts of the nearest neighbor atoms
+    #     neighbor_counts = [len(nn_info) for nn_info in nn_info_list]
+
+    #     # Check the angle lists (not implemented in this example)
+
+    #     # Check if all neighbors are on the same plane (not implemented in this example)
+
+    #     # Append the results to the final list
+    #     result.append((species, min_distance, neighbor_counts, None, None))
+
+# Example usage:
+# Assuming you have a pymatgen.core.Structure object named 'crystal'
+archimedean_results = search_archimedean_lattice_layer_structure(structs[94794])
+print(archimedean_results)
+# for species, min_distance, neighbor_counts, angles, same_plane in archimedean_results:
+#     print(f"Species: {species}")
+#     print(f"Minimum interatomic distance: {min_distance:.2f} Å")
+#     print(f"Neighbor counts: {neighbor_counts}")
+#     print("-" * 40)
 
 #%%
-# Create a new dictionary with Kagome lattice materials only
-mpdata_screened = screen_materials(mpdata)
-kagome_materials = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened.items() if lattice_type == 'Kagome'}
-honeycomb_materials = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened.items() if lattice_type == 'Honeycomb'}
-triangular_materials = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened.items() if lattice_type == 'Triangular'}
-print('Screening result of mpdata [Kagome]: ', kagome_materials)
-print('Screening result of mpdata [Honeycomb]: ', honeycomb_materials)
-print('Screening result of mpdata [Triangular]: ', triangular_materials)
+# screen the material of specific space group index
+sg_idx = 191
+idx_targets = space_group_indices[sg_idx]
 
-mpdata_screened1 = screen_materials(mpdata_hex)
-kagome_materials1 = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened1.items() if lattice_type == 'Kagome'}
-honeycomb_materials1 = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened1.items() if lattice_type == 'Honeycomb'}
-triangular_materials1 = {mp_id: lattice_type for mp_id, lattice_type in mpdata_screened1.items() if lattice_type == 'Triangular'}
-print('Screening result of mpdata_hex [Kagome]: ', kagome_materials1)
-print('Screening result of mpdata_hex [Honeycomb]: ', honeycomb_materials1)
-print('Screening result of mpdata_hex [Triangular]: ', triangular_materials1)
+#%%
+kagomes, honeys, triangs = [], [], []
+for i, idx in enumerate(idx_targets):
+    struct = structs[idx]
+    result = search_archimedean_lattice_layer_structure(struct)
+    if 'kagome' in result:
+        kagomes.append(idx)
+    if 'honeycomb' in result:
+        honeys.append(idx)
+    if 'triangular' in result:
+        triangs.append(idx)
 
+print('Kagome materials')
+print(kagomes)
+print('Honeycomb materials')
+print(honeys)
+print('Triangular materials')
+print(triangs)
 
-
-
-
-
+print('[kagomes, honeycombs, triangulars: ', [len(kagomes), len(honeys), len(triangs)])
 
 #%%
 

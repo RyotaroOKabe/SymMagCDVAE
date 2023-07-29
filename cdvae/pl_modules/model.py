@@ -51,7 +51,7 @@ class CrystGNN_Supervise(BaseModule):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
+        print('check!!!', self.hparams.encoder)
         self.encoder = hydra.utils.instantiate(self.hparams.encoder)
 
     def forward(self, batch) -> Dict[str, torch.Tensor]:
