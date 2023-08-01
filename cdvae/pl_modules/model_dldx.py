@@ -277,7 +277,7 @@ class CDVAE_SGO(BaseModule):
                 cur_cart_coords = frac_to_cart_coords(
                     cur_frac_coords, lengths, angles, num_atoms)
                 pred_cart_coord_diff = pred_cart_coord_diff / sigma
-                if alpha > 0:
+                if alpha > 1e-5:
                     frac = cur_frac_coords.clone()
                     frac.requires_grad=True
                     with torch.enable_grad():
