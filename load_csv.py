@@ -83,3 +83,12 @@ astruct = pymatgen2ase(pstruct)
 build_crystal(crystal_str)
 
 #%%
+# Plot a histogram
+plt.hist(df['spacegroup.number'], bins=230, alpha=0.7)
+plt.xlabel('Space Group Number')
+plt.ylabel('Frequency')
+plt.title('Histogram of Space Group Numbers')
+plt.show()
+
+
+#%%
