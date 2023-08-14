@@ -153,8 +153,8 @@ for i, l in enumerate(logvars):
         # grads3_list.append(-grads3.detach().numpy())
         loss4 = sgo_cum_loss_gw(frac4, oprs)
         # ys3.append(loss3)
-        # loss4.backward()
-        # grads4 = frac4.grad
+        loss4.backward()
+        grads4 = frac4.grad
         frac4_list.append(frac4.detach().numpy())
         # grads3_list.append(-grads3.detach().numpy())
         loss_0 += loss0/n_dstructs

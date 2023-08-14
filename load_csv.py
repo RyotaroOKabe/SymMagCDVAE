@@ -16,7 +16,7 @@ datasets = ['g', 'y', 'r']
 colors = dict(zip(datasets, palette))
 cmap = mpl.colors.LinearSegmentedColormap.from_list('cmap', [palette[k] for k in [0,2,1]])
 
-data_dir = '/home/rokabe/data2/generative/cdvae_ro1/data/magndata'
+data_dir = '/home/rokabe/data2/generative/symcdvae/data/mp_20'
 file_name = 'train.csv'
 file = data_dir + '/' + file_name
 

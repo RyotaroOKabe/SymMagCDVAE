@@ -374,3 +374,37 @@ def sgo_cum_loss_ot2(frac, oprs, r_max):
         diff = sgo_loss_ot2(frac, opr, r_max)
         loss += diff
     return loss/nops
+
+
+
+def sgo_loss_gw(frac, opr): # can be vectorized for multiple space group opoerations?
+    """
+    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+    """
+    frac0 = frac.clone()#.detach()
+    frac0.requires_grad_()
+    frac1 = frac.clone()
+    frac1.requires_grad_()
+    frac1 = frac1@opr.T%1
+    p, q = ot.unif(len(frac0)), ot.unif(len(frac1))
+    p, q = torch.tensor(p, requires_grad=False), torch.tensor(q, requires_grad=False)
+    C0 = torch.cdist(frac0, frac0, p=2)
+    C1 = torch.cdist(frac1, frac1, p=2)
+    gw, log = ot.gromov.gromov_wasserstein2(
+        C0, C1, p, q, 'square_loss', verbose=False, log=True)
+    return gw
+
+
+def sgo_cum_loss_gw(frac, oprs):
+    """
+    Cumulative loss from space group operations.
+    """
+    loss = torch.zeros(1).to(frac)
+    # loss.requires_grad=True
+    nops = len(oprs)
+    for opr in oprs:
+        diff = sgo_loss_gw(frac, opr)
+        loss += diff
+    return loss/nops
+
+
