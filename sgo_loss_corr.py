@@ -34,19 +34,29 @@ import ot
 mpdata = pkl.load(open('data/mp_full.pkl', 'rb'))
 mpids = sorted(list(mpdata.keys()))
 mp_dicts = pkl.load(open('data/mp_dicts.pkl', 'rb'))
+sgn_key = []
+# Loop through the keys of the outer dictionary
+for key in mp_dicts:
+    # Check if the length of the inner dictionary is nonzero
+    if len(mp_dicts[key]) > 0:
+        sgn_key.append(key)
 
 #%%
 # cosn
-cosn = mpdata['mp-20536']
-silicon = mpdata['mp-149']
-frac = torch.tensor(cosn.frac_coords)
-lat = torch.tensor(cosn.lattice.matrix)
-spec = cosn.species
-natms = len(frac)
+# cosn = mpdata['mp-20536']
+# silicon = mpdata['mp-149']
+# frac = torch.tensor(cosn.frac_coords)
+# lat = torch.tensor(cosn.lattice.matrix)
+# spec = cosn.species
+# natms = len(frac)
+
+sgn = 225
+materials = mp_dicts[sgn]
+m_keys = sorted(list(materials.keys()))
 
 #%%
 # test the single loss (w/o cum)
-pstruct = cosn
+pstruct = materials[m_keys[0]]
 frac = torch.tensor(pstruct.frac_coords)
 frac.requires_grad = True
 cart = torch.tensor(pstruct.cart_coords)
@@ -67,7 +77,7 @@ loss_perm2 = sgo_loss_perm_cart2(frac, sgo, r_max, lattice)
 
 
 #%%
-pstruct = cosn
+pstruct = materials[m_keys[0]]
 r_max=0.8
 grad=True
 frac = torch.tensor(pstruct.frac_coords)#.clone().detach().requires_grad_(grad)
@@ -95,6 +105,27 @@ loss_perm.backward()
 print('loss_perm: ', loss_perm)
 print('loss_perm.grad: ', loss_perm.grad)
 print('frac1.grad: ', frac1.grad)
+
+#%%
+# function to compare many structure and space group operations simultaneously.
+def table_str_opr(struct_list, oprs_list, loss_fn, r_max, lattice):
+    nr = len(struct_list)
+    nc = len(oprs_list)
+    table = torch.zeros(nr, nc)
+    for i in range(nr):
+        frac = torch.tensor(struct_list[i].frac_coords)
+        frac.requires_grad = grad
+        lattice = torch.tensor(struct_list[i].lattice.matrix)
+        for j in range(nc):
+            oprs = oprs_list[j]
+            table[i, j] = loss_fn(frac, oprs, r_max, lattice)
+    
+    return table
+
+
+
+
+
 
 #%%
 frac0 = torch.tensor(pstruct.frac_coords)
