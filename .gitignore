@@ -9,6 +9,9 @@ archive/
 wandb/
 assets/
 .env
+*png
+*pdf
+*jpg
 
 
 
