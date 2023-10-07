@@ -67,7 +67,7 @@ from pymatgen.core.lattice import Lattice
 
 
 
-def vis_structure(struct_in, supercell=np.eye(3), title=None, rot='5x,5y,90z', savedir=None, palette=palette):
+def vis_structure(struct_in, supercell=np.diag([1,1,1]), title=None, rot='5x,5y,90z', savedir=None, palette=palette):
     if type(struct_in)==Structure:
         struct = Atoms(list(map(lambda x: x.symbol, struct_in.species)) , # list of symbols got from pymatgen
                 positions=struct_in.cart_coords.copy(),
@@ -89,10 +89,10 @@ def vis_structure(struct_in, supercell=np.eye(3), title=None, rot='5x,5y,90z', s
     ax.set_ylabel(r'$x_2\ (\AA)$');
     fig.patch.set_facecolor('white')
     if title is None:
-        ftitle = f"{struct.get_chemical_formula()}"
+        ftitle = f"{struct.get_chemical_formula().translate(sub)}"
         fname =  struct.get_chemical_formula()
     else: 
-        ftitle = f"{title} / {struct.get_chemical_formula()}"
+        ftitle = f"{title} / {struct.get_chemical_formula().translate(sub)}"
         fname = f"{title}_{struct.get_chemical_formula()}"
     fig.suptitle(ftitle, fontsize=15)
     if savedir is not None:

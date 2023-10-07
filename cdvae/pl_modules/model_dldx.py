@@ -17,8 +17,8 @@ from cdvae.common.data_utils import (
 from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
 from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
-from cdvae.pl_modules.space_group import sgo_cum_loss_perm as sgo_cum_loss  #!
-
+# from cdvae.pl_modules.space_group import sgo_cum_loss_perm as sgo_cum_loss  #!
+from cdvae.pl_modules.space_group import sgo_cum_loss as sgo_cum_loss  #!
 
 
 

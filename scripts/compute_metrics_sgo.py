@@ -27,7 +27,7 @@ Percentiles = {
     'mp20': np.array([-3.17562208, -2.82196882, -2.52814761]),
     'carbon': np.array([-154.527093, -154.45865733, -154.44206825]),
     'perovskite': np.array([0.43924842, 0.61202443, 0.7364607]),
-}
+}   # how are the perceentile and the cov cotoff values determined??
 
 COV_Cutoffs = {
     'mp20': {'struc': 0.4, 'comp': 10.},

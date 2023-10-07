@@ -53,7 +53,7 @@ disable_bar=False
 # load model
 def load_model_sgo(model_path, load_data=False, testing=True):  #how to load the model with the updated langevin dynamics?
     with initialize_config_dir(str(model_path)):
-        cfg = compose(config_name='hparams_sgo')
+        cfg = compose(config_name='hparams_sgo')    # make sure the yaml file is in the correct form. 
         model = hydra.utils.instantiate(
             cfg.model,
             optim=cfg.optim,

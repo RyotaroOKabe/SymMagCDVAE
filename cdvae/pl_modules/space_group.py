@@ -152,6 +152,7 @@ def sgo_cum_loss(frac, oprs, r_max):
 
 #230620 
 def perm_invariant_loss(tensor1, tensor2):
+    print('tensor1, tensor2: ', tensor1.shape, tensor2.shape)   #!
     dists = torch.cdist(tensor1, tensor2)
     min_dists = dists.min(dim=1)[0]
     return min_dists.mean()
@@ -170,6 +171,7 @@ def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, num_lens=1, threshold=1
     frac1 = frac.clone()
     frac1.requires_grad_()
     frac1 = frac1@opr.T%1
+    print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
     _, _, edge_vec0 = get_neighbors(frac0, r_max)
     _, _, edge_vec1 = get_neighbors(frac1, r_max)
     if use_min_edges:
