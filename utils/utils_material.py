@@ -35,12 +35,12 @@ from utils.utils_plot import vis_structure
 #%%
 
 class MatSym():
-    def __init__(self, pstruct):
+    def __init__(self, pstruct, symprec=0.01, angle_tolerance=5.0):
         self.pstruct = pstruct
         self.astruct = Atoms(list(map(lambda x: x.symbol, pstruct.species)) , # list of symbols got from pymatgen
                         positions=pstruct.cart_coords.copy(),
                         cell=pstruct.lattice.matrix.copy(), pbc=True) 
-        self.sga = SpacegroupAnalyzer(pstruct)
+        self.sga = SpacegroupAnalyzer(pstruct, symprec, angle_tolerance)
         self.symops=self.sga.get_symmetry_operations()
         self.spgops=self.sga.get_space_group_operations()
         
@@ -75,8 +75,8 @@ class MatSym():
     # def 
 
 class MatTrans(MatSym):
-    def __init__(self, pstruct):
-        super().__init__(pstruct)
+    def __init__(self, pstruct, symprec=0.01, angle_tolerance=5.0):
+        super().__init__(pstruct, symprec, angle_tolerance)
         self.opes = list(set(self.spgops))
         self.oprs = [op.rotation_matrix for op in self.opes]
         self.opts = [op.translation_vector for op in self.opes]

@@ -69,3 +69,27 @@ def get_astruct_all_list(data_path):
             astruct_list.append(astruct)
         astruct_lists.append(astruct_list)
     return astruct_lists
+
+
+def get_astruct_end(data_path):
+    # for recon, gen
+    outputs = output_eval(data_path)
+    lengths, angles, num_atoms, frac_coords, atom_types, all_frac_coords_stack, all_atom_types_stack, eval_setting, time = output_eval(data_path)
+    lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
+    num = len(lattices)
+    astruct_list = []
+    for idx in range(num):
+        lattice = lattices[idx, :, :]
+        sum_idx_bef = num_atoms[0, :idx].sum()
+        sum_idx_aft = num_atoms[0, :idx+1].sum()
+        # steps = all_frac_coords_stack.shape[1]
+        t=-1
+        # astruct_list = []
+        # for t in range(steps):
+        frac = all_frac_coords_stack[0, t, sum_idx_bef:sum_idx_aft, :].to('cpu')
+        cart = frac@lattice.T
+        atoms = all_atom_types_stack[0, t, sum_idx_bef:sum_idx_aft].to('cpu')
+        astruct = Atoms(symbols=atoms, positions = cart, cell = lattice, pbc=True) 
+        astruct_list.append(astruct)
+        # astruct_lists.append(astruct_list)
+    return astruct_list
