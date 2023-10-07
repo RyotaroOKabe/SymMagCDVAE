@@ -10,6 +10,7 @@ from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
 from pymatgen.analysis.graphs import StructureGraph
 from pymatgen.analysis import local_env
+from pymatgen.io.ase import AseAtomsAdaptor
 from ase import Atom, Atoms
 from ase.visualize.plot import plot_atoms
 import matplotlib as mpl
@@ -19,6 +20,7 @@ from os.path import join
 import imageio
 from utils.utils_plot import vis_structure, movie_structs
 from utils.utils_output import get_astruct_list, get_astruct_all_list, output_eval
+from utils.utils_material import MatTrans
 from cdvae.common.data_utils import lattice_params_to_matrix_torch
 from dirs import *
 palette = ['#43AA8B', '#F8961E', '#F94144', '#277DA1']
@@ -46,23 +48,32 @@ num = len(lattices)
 print("jobdir: ", jobdir)
 #%%
 #[1] check each structure aaa
-idx = 0
+idx = 4
 astruct_list = get_astruct_list(use_path, idx)
+pstruct_list = [AseAtomsAdaptor.get_structure(a) for a in astruct_list]
+mts = [MatTrans(p) for p in pstruct_list]
+plt.plot([mt.sg[0] for mt in mts])
+plt.title(f'[{idx}] {astruct_list[-1].get_chemical_formula()}')
+plt.show()
+plt.close()
 
 #%%
-# structdir = join(savedir, job, str(idx))
-# movie_structs(astruct_list, f"struct{idx}", savedir=structdir, supercell=np.diag([1,1,1]))
+# space group distribution
+# check onlythe final product
+
+
+# tune the tolerance
+
+
 
 #%%
-#[1] check all structures in the batch
-astruct_lists = get_astruct_all_list(use_path)
+#  transition of the space group through the optimization process
 
-#%%
-for idx in range(num)[:3]:
-    print(f"0000_{idx}")
-    structdir = join(savedir, job, task, str(idx))
-    print("structdir: ", structdir)
-    movie_structs(astruct_lists[idx], f"0000_{idx}", savedir=structdir, supercell=np.diag([1,1,1]))
+
+
+#%% 
+# comparison with the ground truth
+
 
 
 #%%
