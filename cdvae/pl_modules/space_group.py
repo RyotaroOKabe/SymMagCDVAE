@@ -94,7 +94,6 @@ def esgo_repeat(esgo, num_atoms):
     return esgo.repeat_interleave(num_atoms, dim=0)
 
 
-
 def get_neighbors(frac, r_max):
     """
     Get the neighbor lists in fractional coordinates. 
@@ -118,105 +117,122 @@ def get_neighbors(frac, r_max):
     vectors = frac_dst-frac_src
     return idx_src, idx_dst, vectors
 
+class SGO_Loss_Prod(torch.nn.Module):
+    def __init__(self, r_max) -> None:
+        super().__init__()
+        self.r_max=r_max
+        
+    def sgo_loss(self, frac, opr): # can be vectorized for multiple space group opoerations?
+        """
+        Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+        """
+        frac0 = frac.clone()#.detach()
+        frac0.requires_grad_()
+        frac1 = frac.clone()
+        frac1.requires_grad_()
+        frac1 = frac1@opr.T%1
+        _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
+        _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
+        wvec0 = edge_vec0*edge_vec0
+        wvec1 = edge_vec1*edge_vec1
+        out0 = wvec0.sum(dim=0)
+        out1 = wvec1.sum(dim=0)
+        diff= out1 - out0
+        return diff.norm()
 
-def sgo_loss(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
-    """
-    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
-    """
-    frac0 = frac.clone()#.detach()
-    frac0.requires_grad_()
-    frac1 = frac.clone()
-    frac1.requires_grad_()
-    frac1 = frac1@opr.T%1
-    _, _, edge_vec0 = get_neighbors(frac0, r_max)
-    _, _, edge_vec1 = get_neighbors(frac1, r_max)
-    wvec0 = edge_vec0*edge_vec0
-    wvec1 = edge_vec1*edge_vec1
-    out0 = wvec0.sum(dim=0)
-    out1 = wvec1.sum(dim=0)
-    diff= out1 - out0
-    return diff.norm()
+    def sgo_cum_loss(self, frac, oprs):
+        """
+        Cumulative loss from space group operations.
+        """
+        loss = torch.zeros(1).to(frac)
+        # loss.requires_grad=True
+        nops = len(oprs)
+        for opr in oprs:
+            diff = self.sgo_loss(frac, opr)
+            loss += diff
+        return loss/nops
 
-def sgo_cum_loss(frac, oprs, r_max):
-    """
-    Cumulative loss from space group operations.
-    """
-    loss = torch.zeros(1).to(frac)
-    # loss.requires_grad=True
-    nops = len(oprs)
-    for opr in oprs:
-        diff = sgo_loss(frac, opr, r_max)
-        loss += diff
-    return loss/nops
-
+    def forward(self, frac, oprs):
+        return self.sgo_cum_loss(frac, oprs)
 
 #230620 
-def perm_invariant_loss(tensor1, tensor2):
-    print('tensor1, tensor2: ', tensor1.shape, tensor2.shape)   #!
-    dists = torch.cdist(tensor1, tensor2)
-    min_dists = dists.min(dim=1)[0]
-    return min_dists.mean()
+class SGO_Loss_Perm(torch.nn.Module):
+    def __init__(self, r_max, use_min_edges=False, num_lens=1, threshold=1e-3) -> None:
+        super().__init__()
+        self.r_max = r_max
+        self.use_min_edges=use_min_edges
+        self.num_lens = num_lens
+        self.threshold = threshold
+    def perm_invariant_loss(self, tensor1, tensor2):
+        print('tensor1, tensor2: ', tensor1.shape, tensor2.shape)   #!
+        dists = torch.cdist(tensor1, tensor2)
+        min_dists = dists.min(dim=1)[0]
+        return min_dists.mean()
 
-def symmetric_perm_invariant_loss(tensor1, tensor2):
-    loss1 = perm_invariant_loss(tensor1, tensor2)
-    loss2 = perm_invariant_loss(tensor2, tensor1)
-    return (loss1 + loss2) / 2
+    def symmetric_perm_invariant_loss(self, tensor1, tensor2):
+        loss1 = self.perm_invariant_loss(tensor1, tensor2)
+        loss2 = self.perm_invariant_loss(tensor2, tensor1)
+        return (loss1 + loss2) / 2
 
-def sgo_loss_perm(frac, opr, r_max, use_min_edges=False, num_lens=1, threshold=1e-3): # can be vectorized for multiple space group opoerations?
-    """
-    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
-    """
-    frac0 = frac.clone()#.detach()
-    frac0.requires_grad_()
-    frac1 = frac.clone()
-    frac1.requires_grad_()
-    frac1 = frac1@opr.T%1
-    print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
-    _, _, edge_vec0 = get_neighbors(frac0, r_max)
-    _, _, edge_vec1 = get_neighbors(frac1, r_max)
-    if use_min_edges:
-        edge_len0 = edge_vec0.norm(dim=-1)
-        edge_len1 = edge_vec1.norm(dim=-1)
-        mask0 = edge_len0 > threshold
-        mask1 = edge_len1 > threshold
-        edge_len_f0 = edge_len0[mask0]
-        edge_len_f1 = edge_len1[mask1]
-        if num_lens>1:
-            target_lens0 = torch.sort(torch.unique(edge_len_f0)).values[:num_lens]
-            target_lens1 = torch.sort(torch.unique(edge_len_f1)).values[:num_lens]
-            indices0, indices1 = [], []
-            for target_len in target_lens0:
-                # print(target_len.shape)
-                # print(torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1))))
-                target_indices = torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1)))[-1]
-                indices0.append(target_indices)
-            for target_len in target_lens1:
-                # print(target_len)
-                target_indices = torch.where(torch.eq(edge_len_f1, target_len.reshape(1,-1)))[-1]
-                indices1.append(target_indices)
-            indices0, indices1 = torch.cat(indices0), torch.cat(indices1)
-            # print('indices0: ', indices0)
-            # print('indices1: ', indices1)
-            idx_edge_min0 = torch.tensor(indices0)
-            idx_edge_min1 = torch.tensor(indices1)
-        else:
-            idx_edge_min0 = torch.nonzero(edge_len_f0 == edge_len_f0.min()).flatten()
-            idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
-        edge_vec0 = edge_vec0[idx_edge_min0]
-        edge_vec1 = edge_vec1[idx_edge_min1]
-    return symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
+    def sgo_loss_perm(self, frac, opr): # can be vectorized for multiple space group opoerations?
+        """
+        Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+        """
+        frac0 = frac.clone()#.detach()
+        frac0.requires_grad_()
+        frac1 = frac.clone()
+        frac1.requires_grad_()
+        frac1 = frac1@opr.T%1
+        print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
+        _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
+        _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
+        if self.use_min_edges:
+            edge_len0 = edge_vec0.norm(dim=-1)
+            edge_len1 = edge_vec1.norm(dim=-1)
+            mask0 = edge_len0 > self.threshold
+            mask1 = edge_len1 > self.threshold
+            edge_len_f0 = edge_len0[mask0]
+            edge_len_f1 = edge_len1[mask1]
+            if self.num_lens>1:
+                target_lens0 = torch.sort(torch.unique(edge_len_f0)).values[:self.num_lens]
+                target_lens1 = torch.sort(torch.unique(edge_len_f1)).values[:self.num_lens]
+                indices0, indices1 = [], []
+                for target_len in target_lens0:
+                    # print(target_len.shape)
+                    # print(torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1))))
+                    target_indices = torch.where(torch.eq(edge_len_f0, target_len.reshape(1,-1)))[-1]
+                    indices0.append(target_indices)
+                for target_len in target_lens1:
+                    # print(target_len)
+                    target_indices = torch.where(torch.eq(edge_len_f1, target_len.reshape(1,-1)))[-1]
+                    indices1.append(target_indices)
+                indices0, indices1 = torch.cat(indices0), torch.cat(indices1)
+                # print('indices0: ', indices0)
+                # print('indices1: ', indices1)
+                idx_edge_min0 = torch.tensor(indices0)
+                idx_edge_min1 = torch.tensor(indices1)
+            else:
+                idx_edge_min0 = torch.nonzero(edge_len_f0 == edge_len_f0.min()).flatten()
+                idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
+            edge_vec0 = edge_vec0[idx_edge_min0]
+            edge_vec1 = edge_vec1[idx_edge_min1]
+        return self.symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
-def sgo_cum_loss_perm(frac, oprs, r_max, use_min_edges=False, num_lens=1):
-    """
-    Cumulative loss from space group operations.
-    """
-    loss = torch.zeros(1).to(frac)
-    # loss.requires_grad=True
-    nops = len(oprs)
-    for opr in oprs:
-        diff = sgo_loss_perm(frac, opr, r_max, use_min_edges, num_lens, threshold=1e-3)
-        loss += diff
-    return loss/nops
+    def sgo_cum_loss_perm(self, frac, oprs):
+        """
+        Cumulative loss from space group operations.
+        """
+        loss = torch.zeros(1).to(frac)
+        # loss.requires_grad=True
+        nops = len(oprs)
+        for opr in oprs:
+            diff = self.sgo_loss_perm(frac, opr)
+            loss += diff
+        return loss/nops
+
+    def forward(self, frac, oprs):
+        return self.sgo_cum_loss_perm(self, frac, oprs)
+
 
 def diffuse_frac(pstruct, sigma=0.1):
     frac = pstruct.frac_coords
@@ -233,73 +249,81 @@ def diffuse_frac(pstruct, sigma=0.1):
     return struct_out
 
 # 230714
-def perm_invariant_loss_assign(tensor1, tensor2):
-    dists = torch.cdist(tensor1, tensor2)
-    row_indices, col_indices = linear_sum_assignment_torch(dists)
-    return torch.sum(dists[row_indices, col_indices])
-    # min_dists = dists.min(dim=1)[0]
-    # return min_dists.mean()
+class SGO_Loss_Assign(torch.nn.Module):
+    def __init__(self, r_max) -> None:
+        super().__init__()
+        self.r_max = r_max
+        
+    def perm_invariant_loss_assign(self, tensor1, tensor2):
+        dists = torch.cdist(tensor1, tensor2)
+        row_indices, col_indices = self.linear_sum_assignment_torch(dists)
+        return torch.sum(dists[row_indices, col_indices])
+        # min_dists = dists.min(dim=1)[0]
+        # return min_dists.mean()
 
-def symmetric_perm_invariant_loss_assign(tensor1, tensor2):
-    loss1 = perm_invariant_loss_assign(tensor1, tensor2)
-    loss2 = perm_invariant_loss_assign(tensor2, tensor1)
-    return (loss1 + loss2) / 2
+    def symmetric_perm_invariant_loss_assign(self, tensor1, tensor2):
+        loss1 = self.perm_invariant_loss_assign(tensor1, tensor2)
+        loss2 = self.perm_invariant_loss_assign(tensor2, tensor1)
+        return (loss1 + loss2) / 2
 
 
-def sgo_loss_perm_assign(frac, opr, r_max): # can be vectorized for multiple space group opoerations?
-    """
-    Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
-    """
-    frac0 = frac.clone()#.detach()
-    frac0.requires_grad_()
-    frac1 = frac.clone()
-    frac1.requires_grad_()
-    frac1 = frac1@opr.T%1
-    _, _, edge_vec0 = get_neighbors(frac0, r_max)
-    _, _, edge_vec1 = get_neighbors(frac1, r_max)
-    return symmetric_perm_invariant_loss_assign(edge_vec0, edge_vec1)
+    def sgo_loss_perm_assign(self, frac, opr): # can be vectorized for multiple space group opoerations?
+        """
+        Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
+        """
+        frac0 = frac.clone()#.detach()
+        frac0.requires_grad_()
+        frac1 = frac.clone()
+        frac1.requires_grad_()
+        frac1 = frac1@opr.T%1
+        _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
+        _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
+        return self.symmetric_perm_invariant_loss_assign(edge_vec0, edge_vec1)
 
-def sgo_cum_loss_perm_assign(frac, oprs, r_max):
-    """
-    Cumulative loss from space group operations.
-    """
-    loss = torch.zeros(1).to(frac)
-    # loss.requires_grad=True
-    nops = len(oprs)
-    for opr in oprs:
-        diff = sgo_loss_perm_assign(frac, opr, r_max)
-        loss += diff
-    return loss/nops
+    def sgo_cum_loss_perm_assign(self, frac, oprs):
+        """
+        Cumulative loss from space group operations.
+        """
+        loss = torch.zeros(1).to(frac)
+        # loss.requires_grad=True
+        nops = len(oprs)
+        for opr in oprs:
+            diff = self.sgo_loss_perm_assign(frac, opr)
+            loss += diff
+        return loss/nops
 
-def linear_sum_assignment_torch(cost_matrix):
-    """
-    Solve the linear sum assignment problem using the Hungarian algorithm for a distance matrix represented by a torch.tensor.
+    def linear_sum_assignment_torch(cost_matrix):
+        """
+        Solve the linear sum assignment problem using the Hungarian algorithm for a distance matrix represented by a torch.tensor.
 
-    Args:
-        cost_matrix (torch.tensor): The distance matrix representing the costs or profits of assigning agents to tasks.
+        Args:
+            cost_matrix (torch.tensor): The distance matrix representing the costs or profits of assigning agents to tasks.
 
-    Returns:
-        tuple: A tuple containing two torch.tensor arrays representing the row indices and column indices of the optimal assignments.
-    """
-    # Convert the cost matrix to a numpy array
-    cost_matrix_np = cost_matrix.detach().numpy()
+        Returns:
+            tuple: A tuple containing two torch.tensor arrays representing the row indices and column indices of the optimal assignments.
+        """
+        # Convert the cost matrix to a numpy array
+        cost_matrix_np = cost_matrix.detach().numpy()
 
-    # Import the linear_sum_assignment function from scipy.optimize
-    from scipy.optimize import linear_sum_assignment
+        # Import the linear_sum_assignment function from scipy.optimize
+        from scipy.optimize import linear_sum_assignment
 
-    # Solve the linear sum assignment problem using linear_sum_assignment
-    row_indices, col_indices = linear_sum_assignment(cost_matrix_np)
+        # Solve the linear sum assignment problem using linear_sum_assignment
+        row_indices, col_indices = linear_sum_assignment(cost_matrix_np)
 
-    # Convert the row indices and column indices to torch.tensor
-    row_indices_torch = torch.from_numpy(row_indices)
-    col_indices_torch = torch.from_numpy(col_indices)
+        # Convert the row indices and column indices to torch.tensor
+        row_indices_torch = torch.from_numpy(row_indices)
+        col_indices_torch = torch.from_numpy(col_indices)
 
-    return row_indices_torch, col_indices_torch
+        return row_indices_torch, col_indices_torch
 
 
 # OT
 import ot
 
+# class SGO_Loss_OT(torch.nn.Module):
+#     def __init__(self, r_max) -> None:
+#         super().__init__()
 def compute_sq_dist_mat(X_1, X_2):
     '''Computes the l2 squared cost matrix between two point cloud inputs.
     Args:

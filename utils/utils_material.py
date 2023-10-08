@@ -260,6 +260,38 @@ def switch_latvecs(pstruct_in, abc=True):
     return out
 
 
+#%%
+# material data conversion
+def str2pymatgen(cif):
+    pstruct=Structure.from_str(cif, "CIF")
+    return pstruct
+
+# pymatgen > ase.Atom
+def pymatgen2ase(pstruct):
+    return Atoms(list(map(lambda x: x.symbol, pstruct.species)),
+                    positions = pstruct.cart_coords.copy(),
+                    cell = pstruct.lattice.matrix.copy(), 
+                    pbc=True)
+
+def build_crystal(crystal_str, niggli=True, primitive=False):
+    """Build crystal from cif string."""
+    crystal = Structure.from_str(crystal_str, fmt='cif')
+
+    if primitive:
+        crystal = crystal.get_primitive_structure()
+
+    if niggli:
+        crystal = crystal.get_reduced_structure()
+
+    canonical_crystal = Structure(
+        lattice=Lattice.from_parameters(*crystal.lattice.parameters),
+        species=crystal.species,
+        coords=crystal.frac_coords,
+        coords_are_cartesian=False,
+    )
+    # match is gaurantteed because cif only uses lattice params & frac_coords
+    # assert canonical_crystal.matches(crystal)
+    return canonical_crystal
 
 
 

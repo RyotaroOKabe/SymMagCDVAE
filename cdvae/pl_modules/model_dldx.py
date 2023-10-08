@@ -17,9 +17,13 @@ from cdvae.common.data_utils import (
 from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
 from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
+from cdvae.pl_modules.space_group import *
+SGO_LOSS = SGO_Loss_Prod(r_max = 0.5)
 # from cdvae.pl_modules.space_group import sgo_cum_loss_perm as sgo_cum_loss  #!
-from cdvae.pl_modules.space_group import sgo_cum_loss as sgo_cum_loss  #!
-
+# from cdvae.pl_modules.space_group import sgo_cum_loss as sgo_cum_loss  #!
+# from cdvae.pl_modules.space_group import sgo_cum_loss_perm, sgo_cum_loss  #!
+# sgo_loss_dict = {'sgo_loss_prod': sgo_cum_loss, 'sgo_loss_perm': sgo_cum_loss_perm}
+# sgo_key = 'sgo_loss_prod'
 
 
 def build_mlp(in_dim, hidden_dim, fc_num_layers, out_dim):
@@ -182,6 +186,19 @@ class CDVAE_SGO(BaseModule):
         # obtain from datamodule.
         self.lattice_scaler = None
         self.scaler = None
+        
+        # print(self.hparams) #!
+        # print('check-------------------------------')
+        # # self.sgo_loss = sgo_loss_dict[sgo_key]    #hydra.utils.instantiate(self.hparams.sgo_loss)] 
+        # print(self.hparams.encoder)#!
+        # print(self.hparams.decoder)#!
+        # print(self.hparams.sgo_loss)#!
+        # self.decoder2 = hydra.utils.instantiate(self.hparams.decoder)
+        # print(self.decoder2)
+        # self.sgo_loss = hydra.utils.instantiate(self.hparams.sgo_loss)  #!!
+        # print(self.sgo_loss)
+        # print('check22-----')
+        self.sgo_loss = SGO_LOSS  #!!
 
     def reparameterize(self, mu, logvar):   
         """
@@ -281,7 +298,8 @@ class CDVAE_SGO(BaseModule):
                     frac = cur_frac_coords.clone()
                     frac.requires_grad=True
                     with torch.enable_grad():
-                        sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5) 
+                        # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5) 
+                        sgo_loss = self.sgo_loss(frac, sgo) 
                         gradient = torch.autograd.grad(sgo_loss, frac)[0]
                     # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5)    #!
                     # frac.requires_grad_(True)

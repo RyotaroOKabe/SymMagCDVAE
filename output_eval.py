@@ -20,7 +20,7 @@ from os.path import join
 import imageio
 from utils.utils_plot import vis_structure, movie_structs
 from utils.utils_output import get_astruct_list, get_astruct_all_list, get_astruct_end, output_eval
-from utils.utils_material import MatTrans
+from utils.utils_material import *
 from cdvae.common.data_utils import lattice_params_to_matrix_torch
 from dirs import *
 palette = ['#43AA8B', '#F8961E', '#F94144', '#277DA1']
@@ -74,23 +74,6 @@ plt.close()
 
 
 #%%
-# tune the tolerance
-# def get_sg(pstruct, tol):
-#     if isinstance(pstruct, Atoms):
-#         pstruct = AseAtomsAdaptor.get_structure(pstruct)
-#     sga = SpacegroupAnalyzer(pstruct)
-#     symops=sga.get_symmetry_operations()
-#     spgops=sga.get_space_group_operations()
-    
-#     pr_lat = sga.find_primitive()
-#     conv_struct = sga.get_conventional_standard_structure()
-#     hall = sga.get_hall()
-#     lat_type = sga.get_lattice_type()
-#     pgops_frac = sga.get_point_group_operations(cartesian=False)
-#     pgops_cart = sga.get_point_group_operations(cartesian=True)
-#     pg_sym = sga.get_point_group_symbol()
-#     pr_struct = sga.get_primitive_standard_structure()
-#     sg = [sga.get_space_group_number(), sga.get_space_group_symbol()]
 symprec=0.09 # default: 0.01
 angle_tolerance=20.0 # default: 5.0
 mts = [MatTrans(p, symprec, angle_tolerance) for p in pstructs]
@@ -136,16 +119,43 @@ mts1 = [MatTrans(p, symprec, angle_tolerance) for p in pstructs1]
 sgs1 = [mt.sg[0] for mt in mts1]
 len1_ = len(sgs1)
 # plt.hist(np.array(sgs), bins=len_)
-plt.plot(np.array(sgs))
+plt.plot(np.array(sgs1))
 plt.title(f'space group distributions (symprec={symprec}, ang tol={angle_tolerance})')
 plt.show()
 plt.close()
 
 #%%
 # load ground truth (train, test, val data)
+data_dir = join(homedir, 'data/mp_20')
+file_name = 'test.csv'
+file = data_dir + '/' + file_name
+df = pd.read_csv(file)
+pstructs0 = [str2pymatgen(crystal_str) for crystal_str in df['cif']]
+astructs0 = [pymatgen2ase(p) for p in pstructs0]
+print(df.keys())
+print(f"{file}: {len(df)}") # same number as pstructs1 (recon)!!!
+
+# symmetry distribution (for higher symmetry GT, the space group analyzer requires much longer time!!!)
+symprec=0.09 # default: 0.01
+angle_tolerance=20.0 # default: 5.0
+mts0 = [MatTrans(p, symprec, angle_tolerance) for p in pstructs0]
+sgs0 = [mt.sg[0] for mt in mts0]
+len0_ = len(sgs0)
+# plt.hist(np.array(sgs), bins=len_)
+plt.plot(np.array(sgs0))
+plt.title(f'space group distributions (symprec={symprec}, ang tol={angle_tolerance})')
+plt.show()
+plt.close()
+
+# how cann I find the matching/identyty?? Is the order of the sequence the same?? 
+# check property
 
 
 
-# check the length of the data
+# use structure matcher to get the distance matrix (only a part of it.!!!, since ppstructs have more than 9000 maetrials)
+from = 
+
+
+
 
 #%%
