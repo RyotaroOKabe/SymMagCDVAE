@@ -46,29 +46,25 @@ natms = len(frac)
 #%%
 # test the single loss (w/o cum)
 r_max=0.8
-sgloss_prod = SGO_Loss_Prod(r_max)
-sgloss_perm = SGO_Loss_Perm(r_max)
+sgo_loss_prod = SGO_Loss_Prod(r_max)
+sgo_loss_perm = SGO_Loss_Perm(r_max)
 
 pstruct = cosn
 frac = torch.tensor(pstruct.frac_coords)
 frac.requires_grad = True
 mt = MatTrans(pstruct)
 opes = list(set(mt.spgops))
-oprs = torch.stack([torch.tensor(op.rotation_matrix) for op in opes])
-opts = torch.stack([torch.tensor(op.translation_vector) for op in opes])
+oprs = [op.rotation_matrix for op in opes]
+opts = [op.translation_vector for op in opes]
 
-# sgo = torch.tensor(oprs[0])
-# loss_prod = sgo_loss_prod(frac, sgo)
-# loss_perm = sgo_loss_perm(frac, sgo)
-loss_prod = sgloss_prod(frac, oprs)
-loss_perm = sgloss_perm(frac, oprs)
+sgo = torch.tensor(oprs[0])
+loss_prod = sgo_loss_prod(frac, sgo)
+loss_perm = sgo_loss_perm(frac, sgo)
 
 
 #%%
 pstruct = cosn
 r_max=0.8
-sgloss_prod = SGO_Loss_Prod(r_max)
-sgloss_perm = SGO_Loss_Perm(r_max)
 grad=True
 frac = torch.tensor(pstruct.frac_coords)#.clone().detach().requires_grad_(grad)
 frac.requires_grad = grad
@@ -79,7 +75,7 @@ opts = [op.translation_vector for op in opes]
 oprs = [torch.tensor(opr, requires_grad=False) for opr in oprs]
 frac0 = torch.tensor(pstruct.frac_coords)
 frac0.requires_grad = grad
-loss_prod = sgloss_perm(frac0, oprs)
+loss_prod = sgo_cum_loss(frac0, oprs, r_max)
 loss_prod.backward()
 print('loss_prod: ', loss_prod)
 print('loss_prod.grad: ', loss_prod.grad)
@@ -87,7 +83,7 @@ print('frac0.grad: ', frac0.grad)
 
 frac1 = torch.tensor(pstruct.frac_coords)
 frac1.requires_grad = grad
-loss_perm = sgloss_perm(frac1, oprs)
+loss_perm = sgo_cum_loss_perm(frac1, oprs, r_max)
 loss_perm.backward()
 print('loss_perm: ', loss_perm)
 print('loss_perm.grad: ', loss_perm.grad)
@@ -115,8 +111,6 @@ oprs = [torch.tensor(opr, requires_grad=False) for opr in oprs]
 natms = len(mt.pstruct.sites)
 nops = len(opes)
 r_max = 0.7
-sgloss_prod = SGO_Loss_Prod(r_max)
-sgloss_perm = SGO_Loss_Perm(r_max)
 h = 1e-07
 tol = 1e-03
 n_dstructs = 5
@@ -136,13 +130,13 @@ for i, l in enumerate(logvars):
         frac0, frac1, frac2, frac3, frac4 = torch.tensor(dstruct.frac_coords), torch.tensor(dstruct.frac_coords), torch.tensor(dstruct.frac_coords), \
                                                 torch.tensor(dstruct.frac_coords), torch.tensor(dstruct.frac_coords)
         frac0.requires_grad, frac1.requires_grad = grad, grad
-        loss0 = sgloss_prod(frac0, oprs)
+        loss0 = sgo_cum_loss(frac0, oprs, r_max)
         # ys0.append(loss0)
         loss0.backward()
         grads0 = frac0.grad
         frac0_list.append(frac0.detach().numpy())
         grads0_list.append(-grads0.detach().numpy())
-        loss1 = sgloss_perm(frac1, oprs)
+        loss1 = sgo_cum_loss_perm(frac1, oprs, r_max)
         # ys1.append(loss1)
         loss1.backward()
         grads1 = frac1.grad

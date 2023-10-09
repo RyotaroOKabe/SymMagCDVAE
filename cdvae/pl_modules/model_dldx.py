@@ -18,7 +18,7 @@ from cdvae.pl_modules.embeddings import MAX_ATOMIC_NUM
 from cdvae.pl_modules.embeddings import KHOT_EMBEDDINGS
 from cdvae.pl_modules.space_group import struct2spgop, Embed_SPGOP
 from cdvae.pl_modules.space_group import *
-SGO_LOSS = SGO_Loss_Prod(r_max = 0.5)
+SGO_LOSS = SGO_Loss_Perm(r_max = 0.8)
 # from cdvae.pl_modules.space_group import sgo_cum_loss_perm as sgo_cum_loss  #!
 # from cdvae.pl_modules.space_group import sgo_cum_loss as sgo_cum_loss  #!
 # from cdvae.pl_modules.space_group import sgo_cum_loss_perm, sgo_cum_loss  #!
@@ -279,7 +279,7 @@ class CDVAE_SGO(BaseModule):
 
         # init coords.  #OK
         cur_frac_coords = torch.rand((num_atoms.sum(), 3), device=z.device)
-
+        print('frac, num_atoms', cur_frac_coords.shape, num_atoms.shape)    #!
         # annealed langevin dynamics.   
         for sigma in tqdm(self.sigmas, total=self.sigmas.size(0), disable=ld_kwargs.disable_bar):
             if sigma < ld_kwargs.min_sigma:
@@ -299,7 +299,10 @@ class CDVAE_SGO(BaseModule):
                     frac.requires_grad=True
                     with torch.enable_grad():
                         # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5) 
-                        sgo_loss = self.sgo_loss(frac, sgo) 
+                        # sgo_loss = self.sgo_loss(frac, sgo) 
+                        sgos = torch.concatenate([sgo for _ in range(num_atoms.shape[-1])])
+                        nsgos = torch.tensor([sgo.shape[0] for  _ in range(num_atoms.shape[-1])])[None, :]
+                        sgo_loss = self.sgo_loss(frac, num_atoms, sgos, nsgos) 
                         gradient = torch.autograd.grad(sgo_loss, frac)[0]
                     # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5)    #!
                     # frac.requires_grad_(True)

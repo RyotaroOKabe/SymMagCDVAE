@@ -117,42 +117,7 @@ def get_neighbors(frac, r_max):
     vectors = frac_dst-frac_src
     return idx_src, idx_dst, vectors
 
-
-class SGO_Loss(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-    def sgo_loss(self, frac, opr):
-        pass
-    
-    def sgo_cum_loss(self, fracs, natms, oprss, noprs):
-        """
-        Cumulative loss from space group operations.
-        """
-        loss = 0    #torch.zeros(1).to(fracs)
-        # loss.requires_grad=True
-        natms = natms.flatten()
-        noprs = noprs.flatten()
-        nfracs = len(natms)
-        for idx in range(nfracs):
-            idx_f_bef = natms[:idx].sum()
-            idx_f_aft = natms[:idx+1].sum()
-            idx_o_bef = noprs[:idx].sum()
-            idx_o_aft = noprs[:idx+1].sum()
-            # print('idx, idx_f_from, idx_f_to: ', (idx, idx_f_bef, idx_f_aft))
-            # print('idx, idx_o_from, idx_o_to: ', (idx, idx_o_bef, idx_o_aft))
-            frac = fracs[idx_f_bef:idx_f_aft, :]
-            oprs = oprss[idx_o_bef:idx_o_aft, :]
-            # print('oprs, fracs: ', oprs.shape, frac.shape)
-            nops = len(oprs)
-            for opr in oprs:
-                diff = self.sgo_loss(frac, opr)
-                loss += diff/(nops*nfracs)
-        return loss
-
-    def forward(self, fracs, natms, oprss, noprs):
-        return self.sgo_cum_loss(fracs, natms, oprss, noprs)
-
-class SGO_Loss_Prod(SGO_Loss):
+class SGO_Loss_Prod(torch.nn.Module):
     def __init__(self, r_max) -> None:
         super().__init__()
         self.r_max=r_max
@@ -166,7 +131,6 @@ class SGO_Loss_Prod(SGO_Loss):
         frac1 = frac.clone()
         frac1.requires_grad_()
         frac1 = frac1@opr.T%1
-        # print('frac0, frac1, opr: ', frac0.shape, frac1.shape, opr.shape)
         _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
         _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
         wvec0 = edge_vec0*edge_vec0
@@ -176,9 +140,23 @@ class SGO_Loss_Prod(SGO_Loss):
         diff= out1 - out0
         return diff.norm()
 
+    def sgo_cum_loss(self, frac, oprs):
+        """
+        Cumulative loss from space group operations.
+        """
+        loss = torch.zeros(1).to(frac)
+        # loss.requires_grad=True
+        nops = len(oprs)
+        for opr in oprs:
+            diff = self.sgo_loss(frac, opr)
+            loss += diff
+        return loss/nops
+
+    def forward(self, frac, oprs):
+        return self.sgo_cum_loss(frac, oprs)
 
 #230620 
-class SGO_Loss_Perm(SGO_Loss):
+class SGO_Loss_Perm(torch.nn.Module):
     def __init__(self, r_max, use_min_edges=False, num_lens=1, threshold=1e-3) -> None:
         super().__init__()
         self.r_max = r_max
@@ -196,7 +174,7 @@ class SGO_Loss_Perm(SGO_Loss):
         loss2 = self.perm_invariant_loss(tensor2, tensor1)
         return (loss1 + loss2) / 2
 
-    def sgo_loss(self, frac, opr): # can be vectorized for multiple space group opoerations?
+    def sgo_loss_perm(self, frac, opr): # can be vectorized for multiple space group opoerations?
         """
         Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
         """
@@ -240,6 +218,21 @@ class SGO_Loss_Perm(SGO_Loss):
             edge_vec1 = edge_vec1[idx_edge_min1]
         return self.symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
+    def sgo_cum_loss_perm(self, frac, oprs):
+        """
+        Cumulative loss from space group operations.
+        """
+        loss = torch.zeros(1).to(frac)
+        # loss.requires_grad=True
+        nops = len(oprs)
+        for opr in oprs:
+            diff = self.sgo_loss_perm(frac, opr)
+            loss += diff
+        return loss/nops
+
+    def forward(self, frac, oprs):
+        return self.sgo_cum_loss_perm(frac, oprs)
+
 
 def diffuse_frac(pstruct, sigma=0.1):
     frac = pstruct.frac_coords
@@ -256,7 +249,7 @@ def diffuse_frac(pstruct, sigma=0.1):
     return struct_out
 
 # 230714
-class SGO_Loss_Assign(SGO_Loss):
+class SGO_Loss_Assign(torch.nn.Module):
     def __init__(self, r_max) -> None:
         super().__init__()
         self.r_max = r_max

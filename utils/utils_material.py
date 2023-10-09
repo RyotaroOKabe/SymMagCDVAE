@@ -294,6 +294,19 @@ def build_crystal(crystal_str, niggli=True, primitive=False):
     return canonical_crystal
 
 
+def pymatgen2outs(pstructs):
+    lattices, num_atoms, frac_coords, atom_types = [], [], [], []
+    for pstruct in pstructs:
+        lattices.append(pstruct.lattice.matrix)
+        num_atoms.append(len(pstruct.sites))
+        frac_coords.append(pstruct.frac_coords)
+        atom_types.append([ps.species.elements[0].number for ps in pstruct.sites])
+    lattices = torch.tensor(np.stack(lattices))
+    num_atoms = torch.tensor(np.array(num_atoms)[None, :])
+    frac_coords = torch.tensor(np.concatenate(frac_coords)[None, :])
+    atom_types = torch.tensor(np.concatenate(atom_types, axis=0)[None, :])
+    return lattices, num_atoms, frac_coords, atom_types
+
 
 #%%
 
