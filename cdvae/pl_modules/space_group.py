@@ -153,9 +153,10 @@ class SGO_Loss(torch.nn.Module):
         return self.sgo_cum_loss(fracs, natms, oprss, noprs)
 
 class SGO_Loss_Prod(SGO_Loss):
-    def __init__(self, r_max) -> None:
+    def __init__(self, r_max, power=0) -> None:
         super().__init__()
         self.r_max=r_max
+        self.power=power
         
     def sgo_loss(self, frac, opr): # can be vectorized for multiple space group opoerations?
         """
@@ -166,9 +167,10 @@ class SGO_Loss_Prod(SGO_Loss):
         frac1 = frac.clone()
         frac1.requires_grad_()
         frac1 = frac1@opr.T%1
+        natm = len(frac0)
         # print('frac0, frac1, opr: ', frac0.shape, frac1.shape, opr.shape)
-        _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
-        _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
+        _, _, edge_vec0 = get_neighbors(frac0, self.r_max/pow(natm, self.power))
+        _, _, edge_vec1 = get_neighbors(frac1, self.r_max/pow(natm, self.power))
         wvec0 = edge_vec0*edge_vec0
         wvec1 = edge_vec1*edge_vec1
         out0 = wvec0.sum(dim=0)
@@ -179,12 +181,14 @@ class SGO_Loss_Prod(SGO_Loss):
 
 #230620 
 class SGO_Loss_Perm(SGO_Loss):
-    def __init__(self, r_max, use_min_edges=False, num_lens=1, threshold=1e-3) -> None:
+    def __init__(self, r_max, power=0, use_min_edges=False, num_lens=1, threshold=1e-3) -> None:
         super().__init__()
         self.r_max = r_max
         self.use_min_edges=use_min_edges
         self.num_lens = num_lens
         self.threshold = threshold
+        self.power=power
+        
     def perm_invariant_loss(self, tensor1, tensor2):
         print('tensor1, tensor2: ', tensor1.shape, tensor2.shape)   #!
         dists = torch.cdist(tensor1, tensor2)
@@ -205,9 +209,10 @@ class SGO_Loss_Perm(SGO_Loss):
         frac1 = frac.clone()
         frac1.requires_grad_()
         frac1 = frac1@opr.T%1
+        natm = len(frac0)
         print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
-        _, _, edge_vec0 = get_neighbors(frac0, self.r_max)
-        _, _, edge_vec1 = get_neighbors(frac1, self.r_max)
+        _, _, edge_vec0 = get_neighbors(frac0, self.r_max/pow(natm, self.power))
+        _, _, edge_vec1 = get_neighbors(frac1, self.r_max/pow(natm, self.power))
         if self.use_min_edges:
             edge_len0 = edge_vec0.norm(dim=-1)
             edge_len1 = edge_vec1.norm(dim=-1)

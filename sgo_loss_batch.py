@@ -363,7 +363,6 @@ frac1_list, grads1_list = [], []
 
 # h = 1e-07
 # tol = 1e-03
-n_dstructs = 2
 grad=True
 for i, lv in enumerate(logvars):
     sigma = 10**lv
@@ -388,8 +387,8 @@ for i, lv in enumerate(logvars):
     grads1 = fracs_01.grad
     frac1_list.append(fracs_01.detach().numpy())
     # grads1_list.append(-grads1.detach().numpy())
-    loss_0 += loss_0/n_dstructs
-    loss_1 += loss_1/n_dstructs
+    loss_0 += loss_0
+    loss_1 += loss_1
     ys0.append(loss_0)
     ys1.append(loss_1)
 
@@ -410,7 +409,8 @@ fig.patch.set_facecolor('white')
 # structure diffusion (samme space group, diffferent structures)
 # https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#98bff47cc958435b893048955ee85759
 batch_size = 20
-spg_number = 225
+spg_number = 227
+start_time = time.time()
 pstructs00_double = random.sample(list(mp_dicts[spg_number].values()), batch_size*2)
 # Split the list into two halves
 pstructs00 = pstructs00_double[:batch_size]
@@ -426,9 +426,10 @@ oprss00 = torch.concatenate(oprss00_list)
 noprs00 = torch.tensor([len(oprs) for oprs in oprss00_list])[None, :]
 
 # single loss 
-r_max = 0.7
-sgloss_prod = SGO_Loss_Prod(r_max)
-sgloss_perm = SGO_Loss_Perm(r_max)
+r_max = 1.8
+power = 1/3
+sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
+sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
 loss_prod = sgloss_prod(fcoords00[0], num_atoms00, oprss00, noprs00)
 loss_prod.backward()
 print('loss_prod: ', loss_prod)
@@ -436,7 +437,7 @@ print('loss_prod.grad: ', loss_prod.grad)
 print('fracs0.grad: ', fracs0.grad)
 
 # structure diffusion 
-logvars = np.linspace(-2, 0, num=51) #range(10, -5, -1)
+logvars = np.linspace(-2, 0, num=21) #range(10, -5, -1)
 xs = [10**l for l in logvars]
 ys0, ys1 = [], []
 frac0_list, grads0_list = [], []
@@ -444,7 +445,6 @@ frac1_list, grads1_list = [], []
 
 # h = 1e-07
 # tol = 1e-03
-n_dstructs = 2
 grad=True
 for i, lv in enumerate(logvars):
     sigma = 10**lv
@@ -469,8 +469,8 @@ for i, lv in enumerate(logvars):
     grads1 = fracs_01.grad
     frac1_list.append(fracs_01.detach().numpy())
     # grads1_list.append(-grads1.detach().numpy())
-    loss_0 += loss_0/n_dstructs
-    loss_1 += loss_1/n_dstructs
+    loss_0 += loss_0
+    loss_1 += loss_1
     ys0.append(loss_0)
     ys1.append(loss_1)
 
@@ -486,7 +486,9 @@ ax.set_title(f'batch size: {batch_size} | sg: {spg_number}')
 # ax.set_yscale('log')
 fig.patch.set_facecolor('white')
 
-
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Time taken: {elapsed_time:.6f} seconds")
 
 
 #%%
