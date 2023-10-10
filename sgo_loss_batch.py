@@ -330,7 +330,7 @@ if run3:
 #%%
 # https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#fee2bcbabb90490cade476300015e5a7
 # structure diffusion (Si only)
-batch_size = 100
+batch_size = 20
 mpid = 'mp-149'
 pstruct = mpdata[mpid]
 pstructs00 = random.sample(pstructs0, batch_size)
@@ -406,15 +406,21 @@ fig.patch.set_facecolor('white')
 
 
 #%%
-# structure diffusion (samme space group, diffferent structures)
+# structure diffusion (we can assign space group for structure and sg ops individually)
+# https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#c4f705456e764fffb7d26e9b97e6500c
 # https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#98bff47cc958435b893048955ee85759
-batch_size = 20
-spg_number = 227
+batch_size = 10
+sg_number = 2
+sg_number_oprs = 227
 start_time = time.time()
-pstructs00_double = random.sample(list(mp_dicts[spg_number].values()), batch_size*2)
-# Split the list into two halves
-pstructs00 = pstructs00_double[:batch_size]
-pstructs00_oprs = pstructs00_double[batch_size:]
+if sg_number_oprs==sg_number:
+    pstructs00_double = random.sample(list(mp_dicts[sg_number].values()), batch_size*2)
+    # Split the list into two halves
+    pstructs00 = pstructs00_double[:batch_size]
+    pstructs00_oprs = pstructs00_double[batch_size:]
+else: 
+    pstructs00 = random.sample(list(mp_dicts[sg_number].values()), batch_size)
+    pstructs00_oprs = random.sample(list(mp_dicts[sg_number_oprs].values()), batch_size)
 # pstructs00 = pstructs0[:batch_size] # multiple different structures in GT
 # pstructs00 = [pstruct for _ in range(batch_size)]   #! change here!
 fcoords00 = torch.cat([torch.tensor(ps.frac_coords) for ps in pstructs00])[None, :].float()
@@ -426,18 +432,19 @@ oprss00 = torch.concatenate(oprss00_list)
 noprs00 = torch.tensor([len(oprs) for oprs in oprss00_list])[None, :]
 
 # single loss 
-r_max = 1.8
+r_max = 1.1
 power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
 loss_prod = sgloss_prod(fcoords00[0], num_atoms00, oprss00, noprs00)
 loss_prod.backward()
+(f'batch size: {batch_size} | sg (struct): {sg_number}, sg (oprs): {sg_number_oprs}')
 print('loss_prod: ', loss_prod)
 print('loss_prod.grad: ', loss_prod.grad)
 print('fracs0.grad: ', fracs0.grad)
 
 # structure diffusion 
-logvars = np.linspace(-2, 0, num=21) #range(10, -5, -1)
+logvars = np.linspace(-2, 0, num=11) #range(10, -5, -1)
 xs = [10**l for l in logvars]
 ys0, ys1 = [], []
 frac0_list, grads0_list = [], []
@@ -482,7 +489,7 @@ ax.plot(logvars, ys1/max(ys1), label='perm')
 ax.legend()
 ax.set_ylabel(f"Mismatch term by space group operation")
 ax.set_xlabel(f"$log(\sigma)$")
-ax.set_title(f'batch size: {batch_size} | sg: {spg_number}')
+ax.set_title(f'batch size: {batch_size} | sg (struct): {sg_number}, sg (oprs): {sg_number_oprs}')
 # ax.set_yscale('log')
 fig.patch.set_facecolor('white')
 
@@ -490,5 +497,77 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 print(f"Time taken: {elapsed_time:.6f} seconds")
 
+#%%
+# matrix
+# https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#72250ad5655f46a3acfde2c3a57cce32
+okay = []
+bad = []
+for k, v in list(mp_dicts.items()):
+    if len(v) > 0:
+        okay.append(k)
+    else:
+        bad.append(k)
+print('okay: ', okay)
+print('bad: ', bad)
+candidates = okay#[:20] #[2,191, 194, 225, 227]
+r_max = 1.1
+power = 1/3
+sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
+sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
+batch_size = 10
+n_sgs = len(candidates)
+output1 = torch.zeros((n_sgs, n_sgs))
+output2 = torch.zeros((n_sgs, n_sgs))
+for i, row in enumerate(candidates):
+    for j, col in enumerate(candidates):
+        # rn, cn = len(mp_dicts[row]), len(mp_dicts[col])
+        if row==col:
+            try:
+                pstructs00_double = random.sample(list(mp_dicts[row].values()), batch_size*2)
+            except:
+                pstructs00_double = random.choices(list(mp_dicts[row].values()), batch_size*2)
+            # Split the list into two halves
+            pstructs00 = pstructs00_double[:batch_size]
+            pstructs00_oprs = pstructs00_double[batch_size:]
+        else: 
+            try:
+                pstructs00 = random.sample(list(mp_dicts[row].values()), batch_size)
+            except: 
+                pstructs00 = random.choices(list(mp_dicts[row].values()), k=batch_size)
+            try:
+                pstructs00_oprs = random.sample(list(mp_dicts[col].values()), batch_size)
+            except: 
+                pstructs00_oprs = random.choices(list(mp_dicts[col].values()), k=batch_size)
+        fcoords00 = torch.cat([torch.tensor(ps.frac_coords) for ps in pstructs00])[None, :].float()
+        num_atoms00 = torch.tensor([len(ps.sites) for ps in pstructs00])[None, :]
+        opess00 = [list(set(MatTrans(ps).spgops)) for ps in pstructs00_oprs] #!
+        oprss00_list = [torch.stack([torch.tensor(op.rotation_matrix) for op in opes]).float() for opes in opess00]
+        # optss00 = [torch.stack([torch.tensor(op.translation_vector) for op in opes]).float() for opes in opess00]
+        oprss00 = torch.concatenate(oprss00_list)
+        noprs00 = torch.tensor([len(oprs) for oprs in oprss00_list])[None, :]
+        loss1 = sgloss_prod(fcoords00[0], num_atoms00, oprss00, noprs00)
+        loss2 = sgloss_perm(fcoords00[0], num_atoms00, oprss00, noprs00)
+        output1[i,j] = loss1
+        output2[i,j] = loss2
+
+fig, axs = plt.subplots(1,2, figsize=(n_sgs*5.8, n_sgs*2.5))
+# Display the image using plt.imshow
+outputs = [output1, output2]
+axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
+for i, (ax, out, axtitle) in enumerate(zip(axs, outputs, axtitles)):
+    print(axtitle)
+    cax = ax.imshow(out.detach().numpy(), cmap='viridis')
+    for i in range(out.shape[0]):
+        for j in range(out.shape[1]):
+            ax.annotate(f'{out[i, j]:.3f}', xy=(j, i), color='white',
+                        fontsize=25, ha='center', va='center')
+    cbar = fig.colorbar(cax)
+    ax.set_ylabel('SG of structs')
+    ax.set_xlabel('SG of ops')
+    ax.set_yticks(range(n_sgs), candidates)
+    ax.set_xticks(range(n_sgs), candidates)
+    ax.set_title(axtitle)
+
+fig.savefig(f'./figures/sgloss/sgloss_matrix{n_sgs}.png')
 
 #%%

@@ -190,7 +190,6 @@ class SGO_Loss_Perm(SGO_Loss):
         self.power=power
         
     def perm_invariant_loss(self, tensor1, tensor2):
-        print('tensor1, tensor2: ', tensor1.shape, tensor2.shape)   #!
         dists = torch.cdist(tensor1, tensor2)
         min_dists = dists.min(dim=1)[0]
         return min_dists.mean()
@@ -243,6 +242,7 @@ class SGO_Loss_Perm(SGO_Loss):
                 idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
             edge_vec0 = edge_vec0[idx_edge_min0]
             edge_vec1 = edge_vec1[idx_edge_min1]
+        print('edge_vec0, edge_vec1, edge_vec0/natm, edge_vec1/natm: ', edge_vec0.shape[0], edge_vec1.shape[0], edge_vec0.shape[0]/natm, edge_vec1.shape[0]/natm)   #!
         return self.symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
 
