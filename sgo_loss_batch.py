@@ -42,9 +42,9 @@ savedir = join(homedir, 'figures')
 print("datadir: ", datadir)
 
 #%%
-job = "2023-06-10/mp_20_2"   #!
+# job = "2023-06-10/mp_20_2"   #!
 task = 'gen'
-jobdir = join(hydradir, job)
+jobdir = join(hydradir, job_folder)
 use_path = join(jobdir, f'eval_{task}.pt') #!
 
 lengths, angles, num_atoms, frac_coords, atom_types, all_frac_coords_stack, all_atom_types_stack, eval_setting, time_out =output_eval(use_path)
@@ -567,7 +567,7 @@ for i, (ax, out, axtitle) in enumerate(zip(axs, outputs, axtitles)):
     ax.set_yticks(range(n_sgs), candidates)
     ax.set_xticks(range(n_sgs), candidates)
     ax.set_title(axtitle)
-
+ 
 fig.savefig(f'./figures/sgloss/sgloss_matrix{n_sgs}.png')
 
 #%%
