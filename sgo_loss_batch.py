@@ -509,17 +509,18 @@ for k, v in list(mp_dicts.items()):
         bad.append(k)
 print('okay: ', okay)
 print('bad: ', bad)
-candidates = okay#[:20] #[2,191, 194, 225, 227]
+candidates_row = okay#[:20] #[2,191, 194, 225, 227]
+candidates_col = okay
 r_max = 1.1
 power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
 batch_size = 10
-n_sgs = len(candidates)
-output1 = torch.zeros((n_sgs, n_sgs))
-output2 = torch.zeros((n_sgs, n_sgs))
-for i, row in enumerate(candidates):
-    for j, col in enumerate(candidates):
+n_sgs_r, n_sgs_c = len(candidates_row), len(candidates_col)
+output1 = torch.zeros((n_sgs_r, n_sgs_c))
+output2 = torch.zeros((n_sgs_r, n_sgs_c))
+for i, row in enumerate(candidates_row):
+    for j, col in enumerate(candidates_col):
         # rn, cn = len(mp_dicts[row]), len(mp_dicts[col])
         if row==col:
             try:
@@ -550,7 +551,29 @@ for i, row in enumerate(candidates):
         output1[i,j] = loss1
         output2[i,j] = loss2
 
-fig, axs = plt.subplots(1,2, figsize=(n_sgs*5.8, n_sgs*2.5))
+        if j==n_sgs_c:
+            fig, axs = plt.subplots(1,2, figsize=(n_sgs_c*5.8, n_sgs_r*2.5))
+            # Display the image using plt.imshow
+            outputs = [output1, output2]
+            axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
+            for i, (ax, out, axtitle) in enumerate(zip(axs, outputs, axtitles)):
+                print(axtitle)
+                cax = ax.imshow(out.detach().numpy(), cmap='viridis')
+                for i in range(out.shape[0]):
+                    for j in range(out.shape[1]):
+                        ax.annotate(f'{out[i, j]:.3f}', xy=(j, i), color='white',
+                                    fontsize=25, ha='center', va='center')
+                cbar = fig.colorbar(cax)
+                ax.set_ylabel('SG of structs')
+                ax.set_xlabel('SG of ops')
+                ax.set_yticks(range(n_sgs_r), candidates_row)
+                ax.set_xticks(range(n_sgs_c), candidates_col)
+                ax.set_title(axtitle)
+            
+            fig.savefig(f'./figures/sgloss/sgloss_matrix{n_sgs_r}_{n_sgs_c}.png')
+
+
+fig, axs = plt.subplots(1,2, figsize=(n_sgs_c*5.8, n_sgs_r*2.5))
 # Display the image using plt.imshow
 outputs = [output1, output2]
 axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
@@ -564,10 +587,10 @@ for i, (ax, out, axtitle) in enumerate(zip(axs, outputs, axtitles)):
     cbar = fig.colorbar(cax)
     ax.set_ylabel('SG of structs')
     ax.set_xlabel('SG of ops')
-    ax.set_yticks(range(n_sgs), candidates)
-    ax.set_xticks(range(n_sgs), candidates)
+    ax.set_yticks(range(n_sgs_r), candidates_row)
+    ax.set_xticks(range(n_sgs_c), candidates_col)
     ax.set_title(axtitle)
  
-fig.savefig(f'./figures/sgloss/sgloss_matrix{n_sgs}.png')
+fig.savefig(f'./figures/sgloss/sgloss_matrix{n_sgs_r}_{n_sgs_c}.png')
 
 #%%
