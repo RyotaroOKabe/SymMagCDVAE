@@ -499,8 +499,8 @@ print(f"Time taken: {elapsed_time:.6f} seconds")
 
 #%%
 
-lattice_sg = {'TriMono': range(1,16),'Orth': range(16, 75), 'Tetra': range(75,143), 'Trig:': range(143,168), 'Hex': range(168, 195), 'Cubic': range(195, 231)}
-lattice_index = {'TriMono': 0,'Orth': 1, 'Tetra': 2, 'Trig:': 3, 'Hex': 4, 'Cubic': 5}
+lattice_sg = {'TriMono': range(1,16),'Orth': range(16, 75), 'Tetra': range(75,143), 'Trig': range(143,168), 'Hex': range(168, 195), 'Cubic': range(195, 231)}
+lattice_index = {'TriMono': 0,'Orth': 1, 'Tetra': 2, 'Trig': 3, 'Hex': 4, 'Cubic': 5}
 n_lt = len(lattice_sg)
 
 def sg2lattice(sg):
@@ -511,7 +511,7 @@ def sg2lattice(sg):
     return None
 
 def sg2lattice_allocate(sg_candidates):
-    lattice_sg_allocated = {'TriMono': [],'Orth': [], 'Tetra': [], 'Trig:': [], 'Hex': [], 'Cubic': []}
+    lattice_sg_allocated = {'TriMono': [],'Orth': [], 'Tetra': [], 'Trig': [], 'Hex': [], 'Cubic': []}
     for c in sorted(sg_candidates):
         lt, li = sg2lattice(c)
         lattice_sg_allocated[lt].append(c)
@@ -520,7 +520,7 @@ def sg2lattice_allocate(sg_candidates):
 
 
 def sg2lattice_indices(sg_candidates):
-    lattice_sg_indices = {'TriMono': [],'Orth': [], 'Tetra': [], 'Trig:': [], 'Hex': [], 'Cubic': []}
+    lattice_sg_indices = {'TriMono': [],'Orth': [], 'Tetra': [], 'Trig': [], 'Hex': [], 'Cubic': []}
     for i, c in enumerate(sorted(sg_candidates)):
         lt, li = sg2lattice(c)
         lattice_sg_indices[lt].append(i)
@@ -562,6 +562,7 @@ power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
 batch_size = 5
+plot_partial=True
 plot_all=False
 n_sgs_r, n_sgs_c = len(candidates_row), len(candidates_col)
 output = torch.zeros((2, n_sgs_r, n_sgs_c))
@@ -572,7 +573,7 @@ for i, row in enumerate(candidates_row):
             try:
                 pstructs00_double = random.sample(list(mp_dicts[row].values()), batch_size*2)
             except:
-                pstructs00_double = random.choices(list(mp_dicts[row].values()), batch_size*2)
+                pstructs00_double = random.choices(list(mp_dicts[row].values()), k=batch_size*2)
             # Split the list into two halves
             pstructs00 = pstructs00_double[:batch_size]
             pstructs00_oprs = pstructs00_double[batch_size:]
@@ -616,27 +617,35 @@ for i, row in enumerate(candidates_row):
                     indices = indices0
                     labels = labels0
                 n_indices = len(indices)
-                fig, axs = plt.subplots(1,2, figsize=(n_sgs_c*1.0, n_sgs_r*1.0))
-                # Display the image using plt.imshow
-                axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
-                for k, (ax, axtitle) in enumerate(zip(axs, axtitles)):
-                    output_select = output[k][indices, :][:, indices]
-                    print(axtitle)
-                    cax = ax.imshow(output_select.detach().numpy(), cmap='viridis')
-                    for i in range(output_select.shape[0]):
-                        for j in range(output_select.shape[1]):
-                            ax.annotate(f'{output_select[i, j]:.3f}', xy=(j, i), color='white',
-                                        fontsize=22, ha='center', va='center')
-                    cbar = fig.colorbar(cax)
-                    ax.set_ylabel('SG of structs')
-                    ax.set_xlabel('SG of ops')
-                    ax.set_yticks(range(n_indices), labels)
-                    ax.set_xticks(range(n_indices), labels)
-                    ax.set_title(axtitle)
                 
-                fig.suptitle(f'{ltype0}, {ltype1}')
-                fig.savefig(f'./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
-                print(f'./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                if plot_partial:
+                    try:
+                        fig, axs = plt.subplots(1,2, figsize=(n_indices*6, n_indices*2.5))
+                        # Display the image using plt.imshow
+                        axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
+                        for k, (ax, axtitle) in enumerate(zip(axs, axtitles)):
+                            output_select = output[k][indices, :][:, indices]
+                            print(axtitle)
+                            cax = ax.imshow(output_select.detach().numpy(), cmap='viridis')
+                            for i in range(output_select.shape[0]):
+                                for j in range(output_select.shape[1]):
+                                    ax.annotate(f'{output_select[i, j]:.3f}', xy=(j, i), color='white',
+                                                fontsize=24, ha='center', va='center')
+                            cbar = fig.colorbar(cax,fraction=0.040, pad=0.04)
+                            ax.set_ylabel('SG of structs')
+                            ax.set_xlabel('SG of ops')
+                            ax.set_yticks(range(n_indices), labels)
+                            ax.set_xticks(range(n_indices), labels)
+                            ax.tick_params(axis='both', which='major', labelsize=20)
+                            ax.tick_params(axis='both', which='minor', labelsize=20)
+                            ax.set_title(axtitle)
+                        
+                        fig.suptitle(f'{ltype0}, {ltype1}')
+                        fig.savefig(f'./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                        print(f'Figure saved: ./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                    except: 
+                        print(f'Failure saving figure: ./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                        
 
             if plot_all:
                 fig, axs = plt.subplots(1,2, figsize=(n_sgs_c*2.7, n_sgs_r*1.2))
@@ -657,7 +666,7 @@ for i, row in enumerate(candidates_row):
                     ax.set_title(axtitle)
                 
                 fig.savefig(f'./figures/sgloss/sglosses{n_sgs_r}_{n_sgs_c}.png')
-                torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}.pt')
+            torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}.pt') 
 
 
 
