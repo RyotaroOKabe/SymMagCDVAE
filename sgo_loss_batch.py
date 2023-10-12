@@ -403,6 +403,7 @@ ax.set_xlabel(f"$log(\sigma)$")
 ax.set_title(f'batch size: {batch_size}')
 # ax.set_yscale('log')
 fig.patch.set_facecolor('white')
+plt.close(fig)
 
 
 #%%
@@ -492,6 +493,7 @@ ax.set_xlabel(f"$log(\sigma)$")
 ax.set_title(f'batch size: {batch_size} | sg (struct): {sg_number}, sg (oprs): {sg_number_oprs}')
 # ax.set_yscale('log')
 fig.patch.set_facecolor('white')
+plt.close(fig)
 
 end_time = time.time()
 elapsed_time = end_time - start_time
@@ -561,7 +563,7 @@ r_max = 1.1
 power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
-batch_size = 5
+batch_size = 3
 plot_partial=True
 plot_all=False
 n_sgs_r, n_sgs_c = len(candidates_row), len(candidates_col)
@@ -618,6 +620,7 @@ for i, row in enumerate(candidates_row):
                 elif i_l0==i_l1:
                     indices = indices0
                     labels = labels0
+                    ltypes = [ltype0, ltype0]
                 n_indices = len(indices)
                 
                 if plot_partial:
@@ -643,10 +646,11 @@ for i, row in enumerate(candidates_row):
                             ax.set_title(axtitle)
                         
                         fig.suptitle(f'{ltypes[0]}, {ltypes[1]}')
-                        fig.savefig(f'./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
-                        print(f'Figure saved: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
+                        fig.savefig(f'./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}_b{batch_size}.png')
+                        plt.close(fig)
+                        print(f'Figure saved: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}_b{batch_size}.png')
                     except: 
-                        print(f'Failure saving figure: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
+                        print(f'Failure saving figure: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}_b{batch_size}.png')
                         
 
             if plot_all:
@@ -667,8 +671,10 @@ for i, row in enumerate(candidates_row):
                     # ax.set_xticks(range(n_sgs_c), candidates_col)
                     ax.set_title(axtitle)
                 
-                fig.savefig(f'./figures/sgloss/sglosses{n_sgs_r}_{n_sgs_c}.png')
-            torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}.pt') 
+                fig.savefig(f'./figures/sgloss/sglosses{n_sgs_r}_{n_sgs_c}_b{batch_size}.png')
+                plt.close(fig)
+            torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}_b{batch_size}.pt') 
+            plt.close()
 
 
 
@@ -690,6 +696,7 @@ for k, (ax, axtitle) in enumerate(zip(axs, axtitles)):
     ax.set_title(axtitle)
 
 fig.savefig(f'./figures/sgloss/sglosses{n_sgs_r}_{n_sgs_c}.png')
+plt.close(fig)
 torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}.pt')
 
 #%%
