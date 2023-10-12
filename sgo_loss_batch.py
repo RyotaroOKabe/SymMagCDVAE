@@ -610,9 +610,11 @@ for i, row in enumerate(candidates_row):
                 if i_l0 < i_l1:
                     indices = indices0 + indices1
                     labels = labels0 + labels1
+                    ltypes = [ltype0, ltype1]
                 elif i_l0 > i_l1:
                     indices = indices1 + indices0
                     labels = labels1 + labels0
+                    ltypes = [ltype1, ltype0]
                 elif i_l0==i_l1:
                     indices = indices0
                     labels = labels0
@@ -641,10 +643,10 @@ for i, row in enumerate(candidates_row):
                             ax.set_title(axtitle)
                         
                         fig.suptitle(f'{ltype0}, {ltype1}')
-                        fig.savefig(f'./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
-                        print(f'Figure saved: ./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                        fig.savefig(f'./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
+                        print(f'Figure saved: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
                     except: 
-                        print(f'Failure saving figure: ./figures/sgloss/sglosses_{ltype0}_{ltype1}.png')
+                        print(f'Failure saving figure: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
                         
 
             if plot_all:
