@@ -409,7 +409,7 @@ fig.patch.set_facecolor('white')
 # structure diffusion (we can assign space group for structure and sg ops individually)
 # https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#c4f705456e764fffb7d26e9b97e6500c
 # https://www.notion.so/231005-symmetry-enforcement-evaluation-9d71492bd7244f2bb682f76e5954bb90?pvs=4#98bff47cc958435b893048955ee85759
-batch_size = 10
+batch_size = 5
 sg_number = 2
 sg_number_oprs = 227
 start_time = time.time()
@@ -620,7 +620,7 @@ for i, row in enumerate(candidates_row):
                 
                 if plot_partial:
                     try:
-                        fig, axs = plt.subplots(1,2, figsize=(n_indices*6, n_indices*2.5))
+                        fig, axs = plt.subplots(1,2, figsize=(n_indices*5, n_indices*2.2))
                         # Display the image using plt.imshow
                         axtitles = ['SGO_Loss_Prod', 'SGO_Loss_Perm']
                         for k, (ax, axtitle) in enumerate(zip(axs, axtitles)):
