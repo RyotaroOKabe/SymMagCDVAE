@@ -209,7 +209,7 @@ class SGO_Loss_Perm(SGO_Loss):
         frac1.requires_grad_()
         frac1 = frac1@opr.T%1
         natm = len(frac0)
-        print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
+        # print('frac0, frac1: ', frac0.shape, frac1.shape)   #!
         _, _, edge_vec0 = get_neighbors(frac0, self.r_max/pow(natm, self.power))
         _, _, edge_vec1 = get_neighbors(frac1, self.r_max/pow(natm, self.power))
         if self.use_min_edges:
@@ -242,7 +242,7 @@ class SGO_Loss_Perm(SGO_Loss):
                 idx_edge_min1 = torch.nonzero(edge_len_f1 == edge_len_f1.min()).flatten()
             edge_vec0 = edge_vec0[idx_edge_min0]
             edge_vec1 = edge_vec1[idx_edge_min1]
-        print('edge_vec0, edge_vec1, edge_vec0/natm, edge_vec1/natm: ', edge_vec0.shape[0], edge_vec1.shape[0], edge_vec0.shape[0]/natm, edge_vec1.shape[0]/natm)   #!
+        # print('edge_vec0, edge_vec1, edge_vec0/natm, edge_vec1/natm: ', edge_vec0.shape[0], edge_vec1.shape[0], edge_vec0.shape[0]/natm, edge_vec1.shape[0]/natm)   #!
         return self.symmetric_perm_invariant_loss(edge_vec0, edge_vec1)
 
 

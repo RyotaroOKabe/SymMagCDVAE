@@ -642,7 +642,7 @@ for i, row in enumerate(candidates_row):
                             ax.tick_params(axis='both', which='minor', labelsize=20)
                             ax.set_title(axtitle)
                         
-                        fig.suptitle(f'{ltype0}, {ltype1}')
+                        fig.suptitle(f'{ltypes[0]}, {ltypes[1]}')
                         fig.savefig(f'./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
                         print(f'Figure saved: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}.png')
                     except: 
