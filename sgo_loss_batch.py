@@ -501,7 +501,7 @@ print(f"Time taken: {elapsed_time:.6f} seconds")
 
 #%%
 
-lattice_sg = {'TriMono': range(1,16),'Orth': range(16, 75), 'Tetra': range(75,143), 'Trig': range(143,168), 'Hex': range(168, 195), 'Cubic': range(195, 231)}
+lattice_sg = {'TriMono': list(range(1,16)),'Orth': list(range(16, 75)), 'Tetra': list(range(75,143)), 'Trig': list(range(143,168)), 'Hex': list(range(168, 195)), 'Cubic': list(range(195, 231))}
 lattice_index = {'TriMono': 0,'Orth': 1, 'Tetra': 2, 'Trig': 3, 'Hex': 4, 'Cubic': 5}
 n_lt = len(lattice_sg)
 
@@ -553,8 +553,15 @@ for k, v in list(mp_dicts.items()):
         bad.append(k)
 print('okay: ', okay)
 print('bad: ', bad)
-candidates_row = sorted(okay)#[:20] #[2,191, 194, 225, 227]
-candidates_col = sorted(okay)
+
+candidates0 = []
+for k in ['TriMono', 'Hex', 'Cubic']:
+    candidates0 += lattice_sg[k]
+candidates = [c for c in candidates0 if c in okay]
+print(candidates, len(candidates))
+
+candidates_row = sorted(candidates)#[:20] #[2,191, 194, 225, 227]
+candidates_col = sorted(candidates)
 lattice_sg_r = sg2lattice_allocate(candidates_row)
 lattice_sg_c = sg2lattice_allocate(candidates_col)
 lattice_sg_r_idx = sg2lattice_indices(candidates_row)
@@ -563,7 +570,7 @@ r_max = 1.1
 power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
-batch_size = 3
+batch_size = 2
 plot_partial=True
 plot_all=False
 n_sgs_r, n_sgs_c = len(candidates_row), len(candidates_col)
