@@ -25,7 +25,7 @@ from cdvae.pl_modules.space_group import *
 from cdvae.common.data_utils import lattice_params_to_matrix_torch
 import random
 from dirs import *
-mpdata = pkl.load(open('data/mp_full.pkl', 'rb'))
+mpdata = pkl.load(open('./data/mp_full.pkl', 'rb'))
 mpids = sorted(list(mpdata.keys()))
 mp_dicts = pkl.load(open('data/mp_dicts.pkl', 'rb'))
 palette = ['#43AA8B', '#F8961E', '#F94144', '#277DA1']
@@ -505,6 +505,8 @@ lattice_sg = {'TriMono': list(range(1,16)),'Orth': list(range(16, 75)), 'Tetra':
 lattice_index = {'TriMono': 0,'Orth': 1, 'Tetra': 2, 'Trig': 3, 'Hex': 4, 'Cubic': 5}
 n_lt = len(lattice_sg)
 
+
+
 def sg2lattice(sg):
     for lattice_type, sg_range in lattice_sg.items():
         if sg in sg_range:
@@ -555,7 +557,10 @@ print('okay: ', okay)
 print('bad: ', bad)
 
 candidates0 = []
-for k in ['TriMono', 'Hex', 'Cubic']:
+ltype_keys = ['TriMono','Orth', 'Tetra', 'Trig', 'Hex', 'Cubic'] #['TriMono', 'Hex', 'Cubic']
+ftag = '_'.join(ltype_keys)
+lattice_index = {k:i for i,k in enumerate(ltype_keys)}
+for k in ltype_keys:
     candidates0 += lattice_sg[k]
 candidates = [c for c in candidates0 if c in okay]
 print(candidates, len(candidates))
@@ -566,7 +571,7 @@ lattice_sg_r = sg2lattice_allocate(candidates_row)
 lattice_sg_c = sg2lattice_allocate(candidates_col)
 lattice_sg_r_idx = sg2lattice_indices(candidates_row)
 lattice_sg_c_idx = sg2lattice_indices(candidates_col)
-r_max = 1.1
+r_max = 1.01
 power = 1/3
 sgloss_prod = SGO_Loss_Prod(r_max=r_max, power=power)
 sgloss_perm = SGO_Loss_Perm(r_max=r_max, power=power)
@@ -613,7 +618,8 @@ for i, row in enumerate(candidates_row):
             indices0 = lattice_sg_r_idx[ltype0]
             labels0 = lattice_sg_r[ltype0]
             print('Save figure [sg, sg_oprs, i, j]: ', (row, col, i, j))
-            for ltype1, i_l1 in lattice_index.items():
+            # for ltype1, i_l1 in lattice_index.items():
+            for i_l1, ltype1 in enumerate(ltype_keys): #!
                 indices1 = lattice_sg_c_idx[ltype1]
                 labels1 = lattice_sg_c[ltype1]
                 if i_l0 < i_l1:
@@ -650,9 +656,9 @@ for i, row in enumerate(candidates_row):
                             ax.set_xticks(range(n_indices), labels)
                             ax.tick_params(axis='both', which='major', labelsize=20)
                             ax.tick_params(axis='both', which='minor', labelsize=20)
-                            ax.set_title(axtitle)
+                            ax.set_title(axtitle, fontsize=40)
                         
-                        fig.suptitle(f'{ltypes[0]}, {ltypes[1]}')
+                        fig.suptitle(f'{ltypes[0]}, {ltypes[1]}', fontsize=45)
                         fig.savefig(f'./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}_b{batch_size}.png')
                         plt.close(fig)
                         print(f'Figure saved: ./figures/sgloss/sglosses_{ltypes[0]}_{ltypes[1]}_b{batch_size}.png')
@@ -678,9 +684,9 @@ for i, row in enumerate(candidates_row):
                     # ax.set_xticks(range(n_sgs_c), candidates_col)
                     ax.set_title(axtitle)
                 
-                fig.savefig(f'./figures/sgloss/sglosses{n_sgs_r}_{n_sgs_c}_b{batch_size}.png')
+                fig.savefig(f'./figures/sgloss/sglosses_{ftag}_b{batch_size}.png')
                 plt.close(fig)
-            torch.save(output, f'./figures/sgloss/sgloss_out{n_sgs_r}_{n_sgs_c}_b{batch_size}.pt') 
+            torch.save(output, f'./figures/sgloss/sgloss_{ftag}_b{batch_size}.pt') 
             plt.close()
 
 
