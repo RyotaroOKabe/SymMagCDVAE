@@ -48,9 +48,9 @@ print("datadir: ", datadir)
 
 
 #%%
-# load data (gen data)
+# load data (gen data) original CDVAE
 task = 'gen'
-label = '_n2a2' 
+label, sg_target = '' , 1
 jobdir = join(hydradir, job_folder2)
 use_path = join(jobdir, f'eval_{task}{label}.pt') #!
 
@@ -59,34 +59,103 @@ lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
 num = len(lattices)
 print("jobdir: ", jobdir)
 
+astruct_list = get_astruct_end(use_path)
+pstruct_list = [AseAtomsAdaptor.get_structure(a) for a in astruct_list]
+symprec=0.08 # default: 0.01
+angle_tolerance=20.0 # default: 5.0
+mts = [MatTrans(p, symprec, angle_tolerance) for p in pstruct_list]
+sgs = [mt.sg[0] for mt in mts]
+len_ = len(sgs)
+sg_match = [sg==sg_target for sg in sgs]
+correct_sum = sum(sg_match)
+score = 100*correct_sum/len(sgs)
+p1_match = [sg==1 for sg in sgs]
+p1_score = 100*sum(p1_match)/len(sgs)
+# (1) plt.scatter
+plt.scatter(range(len(sgs)), sgs, s=2)
+plt.title(f'[{label}] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})\n sg{sg_target} match rate: {score}% | P1: {p1_score}%')
+plt.show()
+plt.close()
+# (2) plt.hist
+plt.hist(np.array(sgs), bins=max(sgs))
+plt.title(f'[{label}] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})\n sg{sg_target} match rate: {score}% | P1: {p1_score}%')
+plt.show()
+plt.close()
+
 
 
 
 #%%
-# space group distributions (parameter, tolerance)
-idx = 5
-astruct_list = get_astruct_list(use_path, idx)
+
+# load data (gen data)
+task = 'gen'
+label, sg_target = '_n2a1' , 2
+# label, sg_target = '' , 1
+jobdir = join(hydradir, job_folder2)
+use_path = join(jobdir, f'eval_{task}{label}.pt') #!
+
+lengths, angles, num_atoms, frac_coords, atom_types, all_frac_coords_stack, all_atom_types_stack, eval_setting, time_out =output_eval(use_path)
+lattices = lattice_params_to_matrix_torch(lengths[0], angles[0])
+num = len(lattices)
+print("jobdir: ", jobdir)
+
+#%%
+
+astruct_list = get_astruct_end(use_path)
 pstruct_list = [AseAtomsAdaptor.get_structure(a) for a in astruct_list]
-mts = [MatTrans(p) for p in pstruct_list]
+symprec=0.08 # default: 0.01
+angle_tolerance=20.0 # default: 5.0
+mts = [MatTrans(p, symprec, angle_tolerance) for p in pstruct_list]
 sgs = [mt.sg[0] for mt in mts]
 len_ = len(sgs)
-# (1) plt.plot
-plt.plot(sgs)
-plt.title(f'[{idx}] {astruct_list[-1].get_chemical_formula()}')
+sg_match = [sg==sg_target for sg in sgs]
+correct_sum = sum(sg_match)
+score = 100*correct_sum/len(sgs)
+p1_match = [sg==1 for sg in sgs]
+p1_score = 100*sum(p1_match)/len(sgs)
+# (1) plt.scatter
+plt.scatter(range(len(sgs)), sgs, s=2)
+plt.title(f'[{label}] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})\n sg{sg_target} match rate: {score}% | P1: {p1_score}%')
 plt.show()
 plt.close()
 # (2) plt.hist
-plt.hist(np.array(sgs), bins=len_)
-plt.title(f'space group distributions')
+plt.hist(np.array(sgs), bins=max(sgs))
+plt.title(f'[{label}] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})\n sg{sg_target} match rate: {score}% | P1: {p1_score}%')
 plt.show()
 plt.close()
 
+# percent achievements
+# sg_match = [sg==sg_target for sg in sgs]
+# correct_sum = sum(sg_match)
+# score = 100*correct_sum/len(sgs)
+print(f'[sg#: {sg_target}]: {score}%')
 
 
 #%% 
 # comparison with the ground truth
-
-
+# load ground truth (train, test, val data)
+data_dir = join(homedir, 'data/mp_20')
+file_name = 'test.csv'
+file = data_dir + '/' + file_name
+df = pd.read_csv(file)
+pstructs0 = [str2pymatgen(crystal_str) for crystal_str in df['cif']]
+astructs0 = [pymatgen2ase(p) for p in pstructs0]
+lattices0, num_atoms0, frac_coords0, atom_types0 = pymatgen2outs(pstructs0)
+print(df.keys())
+print(f"{file}: {len(df)}") # same number as pstructs1 (recon)!!!
+mts0 = [MatTrans(p, symprec, angle_tolerance) for p in pstructs0]
+sgs0 = [mt.sg[0] for mt in mts0]
+len0_ = len(sgs0)
+# (1) plt.scatter
+plt.scatter(range(len(sgs0)), sgs0, s=2)
+plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+plt.show()
+plt.close()
+# (2) plt.hist
+plt.hist(np.array(sgs0), bins=max(sgs0))
+plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+plt.show()
+plt.close()
 
 
 
@@ -94,15 +163,48 @@ plt.close()
 #%%
 
 
-
-
-
-
 #%%
+# GT distribution change under different threshold values. 
+# symprec=0.08 # default: 0.01
+count = 0
+angle_tolerance=20.0 # default: 5.0
+for symprec in np.linspace(0.01, 0.08, 9):
+    mts0 = [MatTrans(p, symprec, angle_tolerance) for p in pstructs0]
+    sgs0 = [mt.sg[0] for mt in mts0]
+    len0_ = len(sgs0)
+    # (1) plt.scatter
+    plt.scatter(range(len(sgs0)), sgs0, s=2)
+    plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+    plt.show()
+    plt.close()
+    # (2) plt.hist
+    plt.hist(np.array(sgs0), bins=max(sgs0))
+    plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+    plt.show()
+    plt.close()
+    
+    count += 1
+    print('count: ', count)
 
 
-
-
-
+symprec=0.08 # default: 0.01
+# angle_tolerance=20.0 # default: 5.0
+for angle_tolerance in np.linspace(2, 20, 10):
+    mts0 = [MatTrans(p, symprec, angle_tolerance) for p in pstructs0]
+    sgs0 = [mt.sg[0] for mt in mts0]
+    len0_ = len(sgs0)
+    # (1) plt.scatter
+    plt.scatter(range(len(sgs0)), sgs0, s=2)
+    plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+    plt.show()
+    plt.close()
+    # (2) plt.hist
+    plt.hist(np.array(sgs0), bins=max(sgs0))
+    plt.title(f'[GT] space groups (symprec: {symprec}, ang_tol: {angle_tolerance})')
+    plt.show()
+    plt.close()
+    
+    count += 1
+    print('count: ', count)
 
 #%%

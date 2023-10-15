@@ -557,7 +557,7 @@ print('okay: ', okay)
 print('bad: ', bad)
 
 candidates0 = []
-ltype_keys = ['TriMono','Orth', 'Tetra', 'Trig', 'Hex', 'Cubic'] #['TriMono', 'Hex', 'Cubic']
+ltype_keys = ['Tetra', 'Trig', 'Hex', 'Cubic'] #['TriMono', 'Hex', 'Cubic']
 ftag = '_'.join(ltype_keys)
 lattice_index = {k:i for i,k in enumerate(ltype_keys)}
 for k in ltype_keys:
