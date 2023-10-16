@@ -43,9 +43,11 @@ def reconstructon_sgo(loader, model, ld_kwargs, alpha, num_evals,
         for eval_idx in range(num_evals):
             gt_num_atoms = batch.num_atoms if force_num_atoms else None
             gt_atom_types = batch.atom_types if force_atom_types else None
-            oprs = batch.oprs   #!
+            # oprs = batch.oprs   #!
+            oprss = batch.oprs0
+            noprs = batch.num_oprs0  #!
             outputs = model.langevin_dynamics_sgo(
-                z, ld_kwargs, oprs, alpha, gt_num_atoms, gt_atom_types)
+                z, ld_kwargs, oprss, noprs, alpha, gt_num_atoms, gt_atom_types)
 
             # collect sampled crystals in this batch.
             batch_frac_coords.append(outputs['frac_coords'].detach().cpu())
@@ -96,6 +98,10 @@ def generation_sgo(model, ld_kwargs, oprs, alpha, num_batches_to_sample, num_sam
     atom_types = []
     lengths = []
     angles = []
+    oprss =  torch.concatenate([oprs for _ in range(batch_size)])    #!
+    noprs = torch.tensor([oprs.shape[0] for  _ in range(batch_size)])[None, :]  #!
+    # sgos = torch.concatenate([sgo for _ in range(num_atoms.shape[-1])])
+    # nsgos = torch.tensor([sgo.shape[0] for  _ in range(num_atoms.shape[-1])])[None, :]
 
     for z_idx in range(num_batches_to_sample):
         batch_all_frac_coords = []
@@ -107,7 +113,7 @@ def generation_sgo(model, ld_kwargs, oprs, alpha, num_batches_to_sample, num_sam
                         device=model.device)
 
         for sample_idx in range(num_samples_per_z):
-            samples = model.langevin_dynamics_sgo(z, ld_kwargs, oprs, alpha)
+            samples = model.langevin_dynamics_sgo(z, ld_kwargs, oprss, noprs, alpha)   #!
 
             # collect sampled crystals in this batch.
             batch_frac_coords.append(samples['frac_coords'].detach().cpu())
@@ -327,6 +333,7 @@ if __name__ == '__main__':
 
         # Usage:
         args = Args()
+        print(args)
     main(args)
 
 

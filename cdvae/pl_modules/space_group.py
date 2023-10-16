@@ -203,10 +203,14 @@ class SGO_Loss_Perm(SGO_Loss):
         """
         Space group loss: The larger this loss is, the more the structure is apart from the given space group. 
         """
-        frac0 = frac.clone()#.detach()
-        frac0.requires_grad_()
-        frac1 = frac.clone()
-        frac1.requires_grad_()
+        # frac0 = frac.clone()#.detach()
+        # frac0.requires_grad_()
+        # frac1 = frac.clone()
+        # frac1.requires_grad_()
+        # frac1 = frac1.float()@opr.T%1
+        opr = opr.float()
+        frac0 = frac#torch.tensor(frac.clone(), requires_grad=True).float()  #.detach()
+        frac1 = frac   #torch.tensor(frac.clone(), requires_grad=True).float()
         frac1 = frac1@opr.T%1
         natm = len(frac0)
         # print('frac0, frac1: ', frac0.shape, frac1.shape)   #!

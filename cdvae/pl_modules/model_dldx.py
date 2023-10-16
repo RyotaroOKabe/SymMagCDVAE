@@ -244,7 +244,7 @@ class CDVAE_SGO(BaseModule):
         return num_atoms, lengths_and_angles, lengths, angles, composition_per_atom
 
     @torch.no_grad()
-    def langevin_dynamics_sgo(self, z, ld_kwargs, sgo, alpha=1, gt_num_atoms=None, gt_atom_types=None):   #!! play around
+    def langevin_dynamics_sgo(self, z, ld_kwargs, oprss, noprs, alpha=1, gt_num_atoms=None, gt_atom_types=None):   #!! play around
         """
         decode crystral structure from latent embeddings.
         z: latent space
@@ -300,10 +300,11 @@ class CDVAE_SGO(BaseModule):
                     with torch.enable_grad():
                         # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5) 
                         # sgo_loss = self.sgo_loss(frac, sgo) 
-                        sgos = torch.concatenate([sgo for _ in range(num_atoms.shape[-1])])
-                        nsgos = torch.tensor([sgo.shape[0] for  _ in range(num_atoms.shape[-1])])[None, :]
-                        sgo_loss = self.sgo_loss(frac, num_atoms, sgos, nsgos) 
-                        gradient = torch.autograd.grad(sgo_loss, frac)[0]
+                        # sgos = torch.concatenate([sgo for _ in range(num_atoms.shape[-1])])
+                        # nsgos = torch.tensor([sgo.shape[0] for  _ in range(num_atoms.shape[-1])])[None, :]
+                        sgo_loss = self.sgo_loss(frac, num_atoms, oprss, noprs) 
+                        # gradient = torch.autograd.grad(sgo_loss, frac)[0]
+                        gradient = torch.autograd.grad(sgo_loss, frac, allow_unused=True, retain_graph=True)[0]   #!
                     # sgo_loss = sgo_cum_loss(frac, sgo, r_max=0.5)    #!
                     # frac.requires_grad_(True)
                     # gradient = torch.autograd.grad(sgo_loss, frac)[0]

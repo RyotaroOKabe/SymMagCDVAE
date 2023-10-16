@@ -52,7 +52,7 @@ class CrystDataset(Dataset):
         prop = self.scaler.transform(data_dict[self.prop])
         (frac_coords, atom_types, lengths, angles, edge_indices,
          to_jimages, num_atoms) = data_dict['graph_arrays']
-        oprs0 = data_dict['oprs']    #!
+        oprs0 = torch.tensor(data_dict['oprs'])    #!
         # print(f'oprs0: {type(oprs0)}, {len(oprs0)}')
         sgn = data_dict['sgn']  #!
         # print(f'sgn: {type(sgn)}, {sgn}')
@@ -74,7 +74,8 @@ class CrystDataset(Dataset):
             num_bonds=edge_indices.shape[0],
             num_nodes=num_atoms,  # special attribute used for batching in pytorch geometric
             y=prop.view(1, -1),
-            oprs0 = torch.tensor(oprs0),    #!
+            oprs0 = oprs0,    #!
+            num_oprs0 = oprs0.shape[0],
             oprs = oprs,    #!
             sgn = sgn,  #!
         )
