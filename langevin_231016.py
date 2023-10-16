@@ -1,4 +1,3 @@
-#%%
 import time
 import argparse
 import torch
@@ -12,7 +11,7 @@ from torch_geometric.data import Batch
 from scripts.eval_utils_sgo import load_model_sgo
 from pymatgen.symmetry.groups import SpaceGroup
 
-#%%
+
 
 def reconstructon_sgo(loader, model, ld_kwargs, alpha, num_evals,
                   force_num_atoms=False, force_atom_types=False, down_sample_traj_step=1):
@@ -191,7 +190,7 @@ def main(args):
     if torch.cuda.is_available():
         model.to('cuda')
     
-    if args.sg is None:
+    if len(args.sg)==0:
         sgn = 1
     else: 
         sgn = int(args.sg)
@@ -276,58 +275,27 @@ def main(args):
         torch.save(optimized_crystals, model_path / gen_out_name)
 
 
-#%%
 if __name__ == '__main__':
-    use_argparse = False
-    if use_argparse:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--model_path', required=True)
-        parser.add_argument('--tasks', nargs='+', default=['recon', 'gen', 'opt'])
-        parser.add_argument('--n_step_each', default=100, type=int)
-        parser.add_argument('--step_lr', default=1e-4, type=float)
-        parser.add_argument('--min_sigma', default=0, type=float)
-        parser.add_argument('--save_traj', default=False, type=bool)
-        parser.add_argument('--disable_bar', default=False, type=bool)
-        parser.add_argument('--num_evals', default=1, type=int)
-        parser.add_argument('--num_batches_to_samples', default=20, type=int)
-        parser.add_argument('--start_from', default='data', type=str)
-        parser.add_argument('--batch_size', default=500, type=int)
-        parser.add_argument('--force_num_atoms', action='store_true')
-        parser.add_argument('--force_atom_types', action='store_true')
-        parser.add_argument('--down_sample_traj_step', default=10, type=int)
-        parser.add_argument('--label', default='')
-        parser.add_argument('--sg', default=1)
-        parser.add_argument('--alpha', default=1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', required=True)
+    parser.add_argument('--tasks', nargs='+', default=['recon', 'gen', 'opt'])
+    parser.add_argument('--n_step_each', default=100, type=int)
+    parser.add_argument('--step_lr', default=1e-4, type=float)
+    parser.add_argument('--min_sigma', default=0, type=float)
+    parser.add_argument('--save_traj', default=False, type=bool)
+    parser.add_argument('--disable_bar', default=False, type=bool)
+    parser.add_argument('--num_evals', default=1, type=int)
+    parser.add_argument('--num_batches_to_samples', default=20, type=int)
+    parser.add_argument('--start_from', default='data', type=str)
+    parser.add_argument('--batch_size', default=500, type=int)
+    parser.add_argument('--force_num_atoms', action='store_true')
+    parser.add_argument('--force_atom_types', action='store_true')
+    parser.add_argument('--down_sample_traj_step', default=10, type=int)
+    parser.add_argument('--label', default='')
+    parser.add_argument('--sg', default='')
+    parser.add_argument('--alpha', default=1)
 
-        args = parser.parse_args()
-        print(args)
+    args = parser.parse_args()
+    print(args)
 
-    else: 
-        from dirs import *
-        import os
-        class Args:
-            def __init__(self):
-                self.model_path = os.path.join(hydradir, job_folder)
-                self.tasks = ['recon', 'gen']
-                self.n_step_each = 100
-                self.step_lr = 1e-4
-                self.min_sigma = 0
-                self.save_traj = True
-                self.disable_bar = False
-                self.num_evals = 1
-                self.num_batches_to_samples = 20
-                self.start_from = 'data'
-                self.batch_size = 500
-                self.force_num_atoms = 'store_true'
-                self.force_atom_types = 'store_true'
-                self.down_sample_traj_step = 10
-                self.label = ''
-                self.sg = 2
-                self.alpha = 2
-
-        # Usage:
-        args = Args()
     main(args)
-
-
-#%%
