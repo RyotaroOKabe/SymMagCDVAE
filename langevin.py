@@ -306,7 +306,6 @@ if __name__ == '__main__':
         parser.add_argument('--alpha', default=1)
 
         args = parser.parse_args()
-        print(args)
 
     else: 
         from dirs import *
@@ -315,25 +314,26 @@ if __name__ == '__main__':
             def __init__(self):
                 self.model_path = os.path.join(hydradir, job_folder)
                 self.tasks = ['recon', 'gen']
-                self.n_step_each = 100
+                self.n_step_each = 50   #100
                 self.step_lr = 1e-4
                 self.min_sigma = 0
                 self.save_traj = True
                 self.disable_bar = False
                 self.num_evals = 1
-                self.num_batches_to_samples = 20
+                self.num_batches_to_samples = 5 #20
                 self.start_from = 'data'
-                self.batch_size = 500
+                self.batch_size = 50    #500
                 self.force_num_atoms = 'store_true'
                 self.force_atom_types = 'store_true'
-                self.down_sample_traj_step = 10
+                self.down_sample_traj_step = 20 #10
                 self.label = ''
                 self.sg = 2
-                self.alpha = 2
+                self.alpha = 10
 
         # Usage:
         args = Args()
-        print(args)
+        
+    print(args.label)
     main(args)
 
 

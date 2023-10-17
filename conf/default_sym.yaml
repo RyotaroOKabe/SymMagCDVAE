@@ -22,7 +22,8 @@ hydra:
 defaults:
   - data: default
   - logging: default
-  - model: vae
+  - model: vae_sym
+  - optim: default
   - train: default
 #    Decomment this parameter to get parallel job running
   # - override hydra/launcher: joblib
