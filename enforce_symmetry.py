@@ -116,7 +116,7 @@ for i, (opr, opt) in enumerate(zip(oprs, opts)):
 
 #%%
 # dictionary to store the same sg, same natm
-sg = 194
+sg = 11
 mpids_sg = sorted(list(mp_dicts[sg].keys()))
 sg_natms = {}
 for mpid in mpids_sg:
@@ -143,7 +143,7 @@ vis_structure(pstruct)
 
 #%% 
 # # make it for all sgs
-get_dict = False
+get_dict = True
 if get_dict:
     dict_sg_natm ={}
     for sg in sorted(mp_dicts.keys()):
@@ -159,29 +159,31 @@ if get_dict:
                 sg_natms[natm].append(mpid)
                 print(f'natm {natm}: append {mpid}')
         sg_natms = {key: sg_natms[key] for key in sorted(sg_natms.keys())}
-        dict_sg_natm[sg]=sg_natms
+        dict_sg_natm[int(sg)]=sg_natms
         
 
     # Save the dictionary as a JSON file
-    with open('./data/mp_sg_natm.json', 'w') as json_file:
-        json.dump(dict_sg_natm, json_file)
+    with open('./data/mp_sg_natm.pkl', 'wb') as json_file:
+        pkl.dump(dict_sg_natm, json_file)
 
 else: 
-    with open('./data/mp_sg_natm.json', 'r') as json_file:
-        dict_sg_natm = json.load(json_file)
+    with open('./data/mp_sg_natm.pkl', 'rb') as json_file:
+        dict_sg_natm = pkl.load(json_file)
 
 #%%
-sg = 191
-mpid = dict_sg_natm[sg][2][-1]
+sg = 227
+mpid = dict_sg_natm[sg][10][6]
 pstruct = mp_dicts[sg][mpid]
 frac = pstruct.frac_coords
 mt = MatTrans(pstruct)
-opes, oprs, opts, nops = mt.spgops,mt.oprs, mt.opts, mt.n_ops
+opes, oprs, opts, nops = mt.spgops, mt.oprs, mt.opts, mt.n_ops
 sigma = 0.05
 print('sg#: ', sg)
 print('mpid: ', mpid)
 print('frac (original): \n', frac)
 print(pstruct)
 vis_structure(pstruct)
+vis_structure(pstruct, supercell=np.diag([3,3,1]))
+
 
 #%%
